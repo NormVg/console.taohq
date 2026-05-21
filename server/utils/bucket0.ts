@@ -101,10 +101,16 @@ export async function deleteFromBucket0(key: string) {
     }
   })
 
-  if (!response.ok && response.status !== 404) {
+  if (!response.ok) {
+    let errorMsg = 'Bucket0 delete failed'
+    try {
+      const payload = await response.json()
+      if (payload.error) errorMsg = payload.error
+    } catch {}
+
     throw createError({
       statusCode: response.status,
-      statusMessage: 'Bucket0 delete failed'
+      statusMessage: errorMsg
     })
   }
 }

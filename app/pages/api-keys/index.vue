@@ -286,20 +286,7 @@ const formatTime = (dateStr: string | null) => {
 
               <div class="reveal-field">
                 <span class="reveal-label">Your API key</span>
-                <div class="key-reveal-box">
-                  <code class="key-reveal-text">{{ generatedKey }}</code>
-                  <MayaBtn
-                    variant="outline"
-                    size="icon"
-                    class="key-copy-btn"
-                    :class="{ copied: justCopied }"
-                    title="Copy key"
-                    @click="copyGeneratedKey"
-                  >
-                    <CheckIcon v-if="justCopied" :size="15" />
-                    <CopyIcon v-else :size="15" />
-                  </MayaBtn>
-                </div>
+                <MayaCodeBlock :code="generatedKey" lang="text" :showCopy="true" />
               </div>
 
               <div class="upload-actions" style="margin-top: 32px;">
@@ -728,32 +715,6 @@ const formatTime = (dateStr: string | null) => {
   letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--maya-text-muted);
-}
-
-.key-reveal-box {
-  display: flex;
-  align-items: flex-start;
-  gap: 8px;
-  padding: 12px;
-  border: 1px solid var(--maya-border);
-  border-radius: var(--maya-radius-md);
-  background: var(--maya-bg-root);
-}
-
-.key-reveal-text {
-  flex: 1;
-  font-family: var(--maya-font-mono);
-  font-size: 0.8125rem;
-  color: var(--maya-text-primary);
-  word-break: break-all;
-  line-height: 1.5;
-  user-select: all;
-}
-
-.key-copy-btn.copied {
-  background: var(--maya-success) !important;
-  border-color: var(--maya-success) !important;
-  color: #fff !important;
 }
 
 .meta-grid {
