@@ -163,15 +163,12 @@ const formatTime = (dateStr: string | null) => {
               class="search-input"
             />
           </div>
-          <MayaBtn size="icon" variant="outline" title="New API Key" @click="startCreate">
-            <PlusIcon :size="16" />
-          </MayaBtn>
-        </div>
-
-        <div class="filter-bar" style="justify-content: flex-end;">
           <button class="refresh-btn" title="Refresh" @click="handleRefresh">
             <RefreshCwIcon class="refresh-icon" :class="{ spinning: apiKeysStore.loading }" />
           </button>
+          <MayaBtn size="icon" variant="outline" title="New API Key" @click="startCreate">
+            <PlusIcon :size="16" />
+          </MayaBtn>
         </div>
 
         <div v-if="apiKeysStore.keys.length > 0" class="stats-strip">
@@ -341,9 +338,9 @@ const formatTime = (dateStr: string | null) => {
                 <span class="meta-value" style="font-weight: 500;">{{ selectedKey.name }}</span>
               </div>
               <div class="meta-item">
-                <span class="meta-label">Prefix</span>
+                <span class="meta-label">Key Prefix (Full key hidden)</span>
                 <div style="display: flex; align-items: center; gap: 8px;">
-                  <code class="meta-value">{{ selectedKey.prefix }}…</code>
+                  <code class="meta-value" style="opacity: 0.8;">{{ selectedKey.prefix }}••••••••••••</code>
                   <button type="button" class="api-link" style="padding: 0; background: none; border: none; cursor: pointer;" title="Copy prefix" @click="copyPrefix(selectedKey.prefix)">
                     <CopyIcon :size="12" />
                   </button>
@@ -455,14 +452,6 @@ const formatTime = (dateStr: string | null) => {
 
 .search-input:focus {
   border-color: var(--maya-text-muted);
-}
-
-.filter-bar {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 10px 12px;
-  border-bottom: 1px dashed var(--maya-border);
 }
 
 .refresh-btn {
