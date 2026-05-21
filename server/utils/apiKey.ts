@@ -53,6 +53,9 @@ export async function validateApiKey(event: any): Promise<boolean> {
   }
 
   const keyRecord = matchingKeys[0]
+  if (!keyRecord) {
+    return false
+  }
 
   // 4. Update lastUsedAt in the background
   try {

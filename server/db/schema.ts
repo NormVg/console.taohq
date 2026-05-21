@@ -1,4 +1,4 @@
-import { pgTable, uuid, text, boolean, timestamp } from 'drizzle-orm/pg-core'
+import { pgTable, uuid, text, boolean, timestamp, integer } from 'drizzle-orm/pg-core'
 
 export const content = pgTable('content', {
   id:        uuid('id').primaryKey().defaultRandom(),
@@ -21,8 +21,25 @@ export const apiKeys = pgTable('api_keys', {
   revoked:    boolean('revoked').notNull().default(false),
 })
 
+export const cdnAssets = pgTable('cdn_assets', {
+  id:          uuid('id').primaryKey().defaultRandom(),
+  key:         text('key').notNull().unique(),
+  fileName:    text('file_name').notNull(),
+  mimeType:    text('mime_type').notNull(),
+  size:        integer('size').notNull(),
+  access:      text('access').notNull().default('public'), // 'public' | 'api_key'
+  bucketKey:   text('bucket_key').notNull(),
+  destination: text('destination').notNull().default('unknown'),
+  cacheData:   text('cache_data').notNull(),
+  createdAt:   timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt:   timestamp('updated_at', { withTimezone: true }).notNull().defaultNow()
+})
+
 export type Content    = typeof content.$inferSelect
 export type NewContent = typeof content.$inferInsert
 
 export type ApiKey    = typeof apiKeys.$inferSelect
 export type NewApiKey = typeof apiKeys.$inferInsert
+
+export type CdnAsset    = typeof cdnAssets.$inferSelect
+export type NewCdnAsset = typeof cdnAssets.$inferInsert

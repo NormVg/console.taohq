@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { markRaw } from 'vue'
-import { LayersIcon, KeyIcon, ShieldCheckIcon, LogOutIcon } from 'lucide-vue-next'
+import { LayersIcon, KeyIcon, HardDriveIcon, ShieldCheckIcon, LogOutIcon } from 'lucide-vue-next'
 import { useAuthStore } from '../stores/auth'
 
 defineProps<{
@@ -13,6 +13,7 @@ const { toast } = useToast()
 
 const navItems = [
   { to: '/cms', label: 'CMS', icon: markRaw(LayersIcon) },
+  { to: '/cdn', label: 'CDN', icon: markRaw(HardDriveIcon) },
   { to: '/api-keys', label: 'API Keys', icon: markRaw(KeyIcon) },
 ]
 
