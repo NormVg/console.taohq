@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { useApiKeysStore } from '../../stores/apiKeys'
 import {
   KeyIcon,
@@ -11,53 +11,67 @@ import {
   CalendarIcon,
   AlertTriangleIcon,
   RefreshCwIcon,
-  BookOpenIcon,
   ShieldIcon,
+  SearchIcon
 } from 'lucide-vue-next'
 
 const apiKeysStore = useApiKeysStore()
 const { toast } = useToast()
 
-const isCreateDialogOpen = ref(false)
+const searchQuery = ref('')
+const selectedKeyId = ref<string | null>(null)
+const isCreating = ref(false)
+
 const keyName = ref('')
 const generatedKey = ref<string | null>(null)
 const justCopied = ref(false)
 const creating = ref(false)
+
+const isConfirmRevokeOpen = ref(false)
 const revoking = ref(false)
-
-const keyToRevoke = ref<{ id: string; name: string } | null>(null)
-const isConfirmDialogOpen = ref(false)
-
-const responseFields = [
-  { key: 'slug', type: 'string' },
-  { key: 'title', type: 'string' },
-  { key: 'type', type: 'text | markdown | json' },
-  { key: 'body', type: 'string' },
-  { key: 'publishedAt', type: 'ISO 8601 timestamp' },
-]
 
 onMounted(async () => {
   await apiKeysStore.fetchKeys()
+  if (apiKeysStore.keys.length > 0) {
+    selectedKeyId.value = apiKeysStore.keys[0].id
+  }
 })
 
-const totalKeys = computed(() => apiKeysStore.keys.length)
-const usedKeys = computed(() => apiKeysStore.keys.filter(k => k.lastUsedAt).length)
-const unusedKeys = computed(() => totalKeys.value - usedKeys.value)
+const filteredKeys = computed(() => {
+  const q = searchQuery.value.trim().toLowerCase()
+  return apiKeysStore.keys.filter(key => 
+    !q || 
+    key.name.toLowerCase().includes(q) || 
+    key.prefix.toLowerCase().includes(q)
+  )
+})
 
-const baseUrl = computed(() =>
-  typeof window !== 'undefined' ? window.location.origin : 'https://your-domain.com'
+const selectedKey = computed(() => 
+  apiKeysStore.keys.find(k => k.id === selectedKeyId.value) || null
 )
 
-const curlExample = computed(
-  () =>
-    `curl -X GET '${baseUrl.value}/api/content/your-slug' \\\n  -H 'Authorization: Bearer YOUR_API_KEY'`
-)
+watch(() => apiKeysStore.keys, (keys) => {
+  if (isCreating.value) return
+  if (!keys.length) {
+    selectedKeyId.value = null
+    return
+  }
+  if (!selectedKeyId.value || !keys.find(k => k.id === selectedKeyId.value)) {
+    selectedKeyId.value = keys[0].id
+  }
+}, { deep: true })
 
-const openCreateDialog = () => {
+const startCreate = () => {
+  isCreating.value = true
+  selectedKeyId.value = null
   keyName.value = ''
   generatedKey.value = null
   justCopied.value = false
-  isCreateDialogOpen.value = true
+}
+
+const selectKey = (id: string) => {
+  selectedKeyId.value = id
+  isCreating.value = false
 }
 
 const handleRefresh = async () => {
@@ -75,11 +89,20 @@ const handleCreateKey = async () => {
     const res = await apiKeysStore.createKey(keyName.value.trim())
     generatedKey.value = res.fullKey
     toast({ title: 'Created', description: 'API key generated successfully.', intent: 'success' })
+    // Refresh to get the new key in the list
+    await apiKeysStore.fetchKeys()
+    const newKey = apiKeysStore.keys.find(k => k.name === keyName.value.trim() && !k.revoked)
+    if (newKey) selectedKeyId.value = newKey.id
   } catch (err: any) {
     toast({ title: 'Error', description: err.message || 'Failed to create API key.', intent: 'danger' })
   } finally {
     creating.value = false
   }
+}
+
+const finishCreate = () => {
+  isCreating.value = false
+  generatedKey.value = null
 }
 
 const copyGeneratedKey = async () => {
@@ -103,19 +126,14 @@ const copyPrefix = async (prefix: string) => {
   }
 }
 
-const confirmRevoke = (key: { id: string; name: string }) => {
-  keyToRevoke.value = key
-  isConfirmDialogOpen.value = true
-}
-
 const handleRevokeKey = async () => {
-  if (!keyToRevoke.value) return
+  if (!selectedKey.value) return
   revoking.value = true
   try {
-    await apiKeysStore.revokeKey(keyToRevoke.value.id)
-    toast({ title: 'Revoked', description: `"${keyToRevoke.value.name}" has been revoked.`, intent: 'info' })
-    isConfirmDialogOpen.value = false
-    keyToRevoke.value = null
+    await apiKeysStore.revokeKey(selectedKey.value.id)
+    toast({ title: 'Revoked', description: `"${selectedKey.value.name}" has been revoked.`, intent: 'info' })
+    isConfirmRevokeOpen.value = false
+    selectedKeyId.value = null
   } catch (err: any) {
     toast({ title: 'Error', description: err.message || 'Failed to revoke API key.', intent: 'danger' })
   } finally {
@@ -123,278 +141,250 @@ const handleRevokeKey = async () => {
   }
 }
 
-const formatDate = (dateStr: string | null) => {
-  if (!dateStr) return null
-  return new Date(dateStr).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })
-}
-
 const formatTime = (dateStr: string | null) => {
-  if (!dateStr) return null
-  return new Date(dateStr).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })
+  if (!dateStr) return 'Never'
+  const date = new Date(dateStr)
+  return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' })
 }
 </script>
 
 <template>
   <ConsoleShell page-title="API Keys">
-    <div class="keys-workspace">
-      <div class="keys-container">
-
-        <!-- Hero -->
-        <header class="page-header">
-          <div class="page-header-text">
-            <h1 class="page-title">API Keys</h1>
-            <p class="page-subtitle">
-              Manage access tokens for reading published CMS content from apps, scripts, and services.
-            </p>
+    <div class="api-workspace">
+      <!-- LEFT: Key list -->
+      <div class="list-panel">
+        <div class="list-toolbar">
+          <div class="search-wrap">
+            <SearchIcon class="search-icon" />
+            <input
+              v-model="searchQuery"
+              type="text"
+              placeholder="Search keys..."
+              class="search-input"
+            />
           </div>
-          <MayaBtn size="sm" @click="openCreateDialog">
-            <PlusIcon :size="15" />
-            <span>New API Key</span>
+          <MayaBtn size="icon" variant="outline" title="New API Key" @click="startCreate">
+            <PlusIcon :size="16" />
           </MayaBtn>
-        </header>
-
-        <!-- Stats -->
-        <div class="stats-grid">
-          <MayaCard class="stat-card">
-            <div class="stat-inner">
-              <div class="stat-icon-wrap">
-                <KeyIcon :size="18" class="stat-icon" />
-              </div>
-              <div class="stat-copy">
-                <span class="stat-label">Total keys</span>
-                <span class="stat-value">{{ totalKeys }}</span>
-              </div>
-            </div>
-          </MayaCard>
-          <MayaCard class="stat-card">
-            <div class="stat-inner">
-              <div class="stat-icon-wrap stat-icon-wrap--success">
-                <ClockIcon :size="18" class="stat-icon stat-icon--success" />
-              </div>
-              <div class="stat-copy">
-                <span class="stat-label">Used at least once</span>
-                <span class="stat-value">{{ usedKeys }}</span>
-              </div>
-            </div>
-          </MayaCard>
-          <MayaCard class="stat-card">
-            <div class="stat-inner">
-              <div class="stat-icon-wrap stat-icon-wrap--muted">
-                <ShieldIcon :size="18" class="stat-icon stat-icon--muted" />
-              </div>
-              <div class="stat-copy">
-                <span class="stat-label">Never used</span>
-                <span class="stat-value">{{ unusedKeys }}</span>
-              </div>
-            </div>
-          </MayaCard>
         </div>
 
-        <!-- Keys list -->
-        <MayaCard class="keys-card">
-          <template #header>
-            <div class="keys-card-header">
-              <div>
-                <h2 class="section-title">Your keys</h2>
-                <p class="section-desc">Revoke any key you no longer trust. Prefixes are safe to display.</p>
-              </div>
-              <MayaBtn
-                variant="ghost"
-                size="icon"
-                title="Refresh list"
-                :disabled="apiKeysStore.loading"
-                @click="handleRefresh"
-              >
-                <RefreshCwIcon :size="16" :class="{ spinning: apiKeysStore.loading }" />
-              </MayaBtn>
-            </div>
-          </template>
+        <div class="filter-bar" style="justify-content: flex-end;">
+          <button class="refresh-btn" title="Refresh" @click="handleRefresh">
+            <RefreshCwIcon class="refresh-icon" :class="{ spinning: apiKeysStore.loading }" />
+          </button>
+        </div>
 
-          <div v-if="apiKeysStore.loading && apiKeysStore.keys.length === 0" class="state-box">
-            <MayaSpinner size="lg" />
-            <span class="state-text">Loading API keys...</span>
+        <div v-if="apiKeysStore.keys.length > 0" class="stats-strip">
+          {{ apiKeysStore.keys.length }} active key{{ apiKeysStore.keys.length === 1 ? '' : 's' }}
+        </div>
+
+        <div class="entries-scroll">
+          <div v-if="apiKeysStore.loading && apiKeysStore.keys.length === 0" class="list-empty">
+            <MayaSpinner size="md" />
+            <span>Loading...</span>
           </div>
 
+          <div v-else-if="apiKeysStore.keys.length === 0" class="list-empty">
+            <KeyIcon class="empty-icon" />
+            <span>No API keys</span>
+            <MayaBtn size="sm" variant="outline" @click="startCreate">
+              <PlusIcon :size="13" />
+              Create one
+            </MayaBtn>
+          </div>
+
+          <div v-else-if="filteredKeys.length === 0" class="list-empty">
+            <SearchIcon class="empty-icon" />
+            <span>No matches</span>
+          </div>
+
+          <div v-else class="entries-list">
+            <button
+              v-for="key in filteredKeys"
+              :key="key.id"
+              type="button"
+              class="entry-item"
+              :class="{ active: selectedKeyId === key.id && !isCreating }"
+              @click="selectKey(key.id)"
+            >
+              <div class="entry-top">
+                <span class="entry-name">{{ key.name }}</span>
+                <span class="entry-slug">{{ key.prefix }}…</span>
+              </div>
+              <div class="entry-meta">
+                <span>Created {{ formatTime(key.createdAt).split(',')[0] }}</span>
+                <div class="status-indicator">
+                  <div class="status-dot" :class="{ live: key.lastUsedAt }"></div>
+                  <span>{{ key.lastUsedAt ? 'Active' : 'Unused' }}</span>
+                </div>
+              </div>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- RIGHT: Detail / Create -->
+      <div class="detail-panel">
+        
+        <!-- Empty -->
+        <div v-if="!selectedKey && !isCreating" class="detail-empty">
           <MayaEmptyState
-            v-else-if="apiKeysStore.keys.length === 0"
             :icon="KeyIcon"
-            title="No API keys yet"
-            description="Create a key to start querying your published content from external apps or services."
+            title="No API key selected"
+            description="Select an API key from the list or create a new one to securely access your content."
           >
             <template #action>
-              <MayaBtn size="sm" @click="openCreateDialog">
+              <MayaBtn @click="startCreate">
                 <PlusIcon :size="14" />
-                <span>Create your first key</span>
+                New API Key
               </MayaBtn>
             </template>
           </MayaEmptyState>
+        </div>
 
-          <div v-else class="table-wrap">
-            <table class="keys-table">
-              <thead>
-                <tr>
-                  <th>Name</th>
-                  <th>Prefix</th>
-                  <th>Created</th>
-                  <th>Last used</th>
-                  <th class="th-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr v-for="key in apiKeysStore.keys" :key="key.id" class="table-row">
-                  <td>
-                    <span class="key-name">{{ key.name }}</span>
-                  </td>
-                  <td>
-                    <button type="button" class="prefix-chip" title="Copy prefix" @click="copyPrefix(key.prefix)">
-                      <code class="prefix-text">{{ key.prefix }}…</code>
-                      <CopyIcon :size="11" class="prefix-copy-icon" />
-                    </button>
-                  </td>
-                  <td>
-                    <div class="ts-cell">
-                      <CalendarIcon :size="12" class="ts-icon" />
-                      <div class="ts-lines">
-                        <span class="ts-date">{{ formatDate(key.createdAt) }}</span>
-                        <span class="ts-time">{{ formatTime(key.createdAt) }}</span>
-                      </div>
-                    </div>
-                  </td>
-                  <td>
-                    <div v-if="key.lastUsedAt" class="ts-cell">
-                      <ClockIcon :size="12" class="ts-icon ts-icon--used" />
-                      <div class="ts-lines">
-                        <span class="ts-date">{{ formatDate(key.lastUsedAt) }}</span>
-                        <span class="ts-time">{{ formatTime(key.lastUsedAt) }}</span>
-                      </div>
-                    </div>
-                    <MayaBadge v-else variant="soft" size="sm">Never used</MayaBadge>
-                  </td>
-                  <td class="td-right">
-                    <MayaBtn variant="ghost" intent="danger" size="sm" @click="confirmRevoke(key)">
-                      <Trash2Icon :size="13" />
-                      <span>Revoke</span>
-                    </MayaBtn>
-                  </td>
-                </tr>
-              </tbody>
-            </table>
+        <!-- Create workspace -->
+        <div v-else-if="isCreating" class="detail-workspace">
+          <div class="detail-header">
+            <div class="detail-header-left">
+              <MayaBadge size="sm" variant="muted" intent="success">New</MayaBadge>
+              <span class="detail-title">Create API Key</span>
+            </div>
           </div>
-        </MayaCard>
 
-        <!-- API docs -->
-        <MayaCard class="docs-card">
-          <template #header>
-            <div class="docs-card-header">
-              <BookOpenIcon :size="18" class="docs-header-icon" />
-              <div>
-                <h2 class="section-title">API reference</h2>
-                <p class="section-desc">Read published content with a bearer token.</p>
+          <div class="detail-body">
+            <div v-if="!generatedKey" class="form-container" style="max-width: 480px;">
+              <p class="create-hint" style="margin-top: 0; color: var(--maya-text-secondary); font-size: 0.8125rem; line-height: 1.5;">
+                Give your key a descriptive label so you can identify it later (e.g. “Production frontend”).
+              </p>
+
+              <div class="field" style="margin-top: 24px;">
+                <label class="field-label">Key name</label>
+                <MayaInput
+                  v-model="keyName"
+                  placeholder="e.g. Production Frontend"
+                  @keyup.enter="handleCreateKey"
+                />
+              </div>
+
+              <div class="upload-actions" style="margin-top: 24px;">
+                <MayaBtn variant="outline" :disabled="creating" @click="isCreating = false">
+                  Cancel
+                </MayaBtn>
+                <MayaBtn
+                  class="upload-btn"
+                  :disabled="creating || !keyName.trim()"
+                  @click="handleCreateKey"
+                >
+                  <MayaSpinner v-if="creating" class="upload-btn-spinner" size="sm" />
+                  <KeyIcon v-else :size="14" />
+                  {{ creating ? 'Generating…' : 'Generate Key' }}
+                </MayaBtn>
               </div>
             </div>
-          </template>
 
-          <div class="docs-body">
-            <section class="docs-block">
-              <h3 class="docs-label">Endpoint</h3>
-              <div class="endpoint-pill">
-                <MayaBadge variant="outline" size="sm">GET</MayaBadge>
-                <code class="endpoint-path">/api/content/<span class="endpoint-param">:slug</span></code>
+            <div v-else class="form-container" style="max-width: 520px;">
+              <MayaAlert intent="warning" title="Copy this key now" :icon="AlertTriangleIcon" style="margin-bottom: 24px;">
+                It will <strong>never be shown again</strong>. If you lose it, generate a new one.
+              </MayaAlert>
+
+              <div class="reveal-field">
+                <span class="reveal-label">Your API key</span>
+                <div class="key-reveal-box">
+                  <code class="key-reveal-text">{{ generatedKey }}</code>
+                  <MayaBtn
+                    variant="outline"
+                    size="icon"
+                    class="key-copy-btn"
+                    :class="{ copied: justCopied }"
+                    title="Copy key"
+                    @click="copyGeneratedKey"
+                  >
+                    <CheckIcon v-if="justCopied" :size="15" />
+                    <CopyIcon v-else :size="15" />
+                  </MayaBtn>
+                </div>
               </div>
-            </section>
 
-            <div class="docs-divider" />
-
-            <section class="docs-block">
-              <h3 class="docs-label">Authentication</h3>
-              <div class="auth-line">
-                <code>Authorization: Bearer </code>
-                <span class="auth-token">YOUR_API_KEY</span>
+              <div class="upload-actions" style="margin-top: 32px;">
+                <MayaBtn style="width: 100%; justify-content: center;" @click="finishCreate">
+                  I've saved this key safely
+                </MayaBtn>
               </div>
-            </section>
+            </div>
+          </div>
+        </div>
 
-            <div class="docs-divider" />
+        <!-- Detail workspace -->
+        <div v-else-if="selectedKey" class="detail-workspace">
+          <div class="detail-header">
+            <div class="detail-header-left">
+              <span class="detail-title">{{ selectedKey.name }}</span>
+            </div>
+            
+            <div class="detail-header-right">
+              <MayaBtn
+                variant="ghost"
+                size="sm"
+                intent="danger"
+                @click="isConfirmRevokeOpen = true"
+              >
+                <Trash2Icon :size="14" />
+                Revoke Key
+              </MayaBtn>
+            </div>
+          </div>
 
-            <section class="docs-block">
-              <h3 class="docs-label">Example request</h3>
-              <MayaCodeBlock :code="curlExample" lang="bash" :show-copy="true" />
-            </section>
+          <div class="detail-body">
+            <div class="meta-grid">
+              <div class="meta-item">
+                <span class="meta-label">Name</span>
+                <span class="meta-value" style="font-weight: 500;">{{ selectedKey.name }}</span>
+              </div>
+              <div class="meta-item">
+                <span class="meta-label">Prefix</span>
+                <div style="display: flex; align-items: center; gap: 8px;">
+                  <code class="meta-value">{{ selectedKey.prefix }}…</code>
+                  <button type="button" class="api-link" style="padding: 0; background: none; border: none; cursor: pointer;" title="Copy prefix" @click="copyPrefix(selectedKey.prefix)">
+                    <CopyIcon :size="12" />
+                  </button>
+                </div>
+              </div>
+              <div class="meta-item">
+                <span class="meta-label">Created</span>
+                <div style="display: flex; align-items: center; gap: 6px; font-size: 0.8125rem; color: var(--maya-text-primary);">
+                  <CalendarIcon :size="14" style="color: var(--maya-text-muted);" />
+                  <span>{{ formatTime(selectedKey.createdAt) }}</span>
+                </div>
+              </div>
+              <div class="meta-item">
+                <span class="meta-label">Last Used</span>
+                <div style="display: flex; align-items: center; gap: 6px; font-size: 0.8125rem; color: var(--maya-text-primary);">
+                  <ClockIcon :size="14" :style="{ color: selectedKey.lastUsedAt ? 'var(--maya-success)' : 'var(--maya-text-muted)' }" />
+                  <span>{{ formatTime(selectedKey.lastUsedAt) }}</span>
+                </div>
+              </div>
+            </div>
 
-            <div class="docs-divider" />
+            <div class="api-divider" style="margin: 32px 0;"></div>
 
-            <section class="docs-block">
-              <h3 class="docs-label">Response fields</h3>
-              <ul class="fields-list">
-                <li v-for="f in responseFields" :key="f.key" class="fields-row">
-                  <code class="field-name">{{ f.key }}</code>
-                  <span class="field-type">{{ f.type }}</span>
-                </li>
-              </ul>
+            <section class="api-section">
+              <h3 class="api-section-label">Security & Access</h3>
+              <p style="font-size: 0.8125rem; color: var(--maya-text-secondary); line-height: 1.6; max-width: 600px;">
+                This API key grants read-only access to all published content and protected CDN assets. 
+                Keep it secure and never expose it in client-side code unless explicitly intended for public consumption.
+                If compromised, revoke it immediately.
+              </p>
             </section>
           </div>
-        </MayaCard>
-
+        </div>
       </div>
     </div>
 
-    <!-- Create dialog -->
-    <MayaDialog v-model="isCreateDialogOpen">
-      <div v-if="!generatedKey" class="dialog-panel">
-        <h2 class="dialog-title">Create API key</h2>
-        <p class="dialog-desc">
-          Give your key a descriptive label so you can identify it later (e.g. “Production frontend”).
-        </p>
-
-        <MayaInput
-          v-model="keyName"
-          label="Key name"
-          placeholder="e.g. Production Frontend"
-          @keyup.enter="handleCreateKey"
-        />
-
-        <div class="dialog-actions">
-          <MayaBtn variant="outline" :disabled="creating" @click="isCreateDialogOpen = false">Cancel</MayaBtn>
-          <MayaBtn class="dialog-primary-btn" :disabled="creating" @click="handleCreateKey">
-            <MayaSpinner v-if="creating" class="dialog-btn-spinner" size="sm" />
-            <span>{{ creating ? 'Generating…' : 'Generate key' }}</span>
-          </MayaBtn>
-        </div>
-      </div>
-
-      <div v-else class="dialog-panel">
-        <MayaAlert intent="warning" title="Copy this key now" :icon="AlertTriangleIcon">
-          It will <strong>never be shown again</strong>. If you lose it, generate a new one.
-        </MayaAlert>
-
-        <div class="reveal-field">
-          <span class="reveal-label">Your API key</span>
-          <div class="key-reveal-box">
-            <code class="key-reveal-text">{{ generatedKey }}</code>
-            <MayaBtn
-              variant="outline"
-              size="icon"
-              class="key-copy-btn"
-              :class="{ copied: justCopied }"
-              title="Copy key"
-              @click="copyGeneratedKey"
-            >
-              <CheckIcon v-if="justCopied" :size="15" />
-              <CopyIcon v-else :size="15" />
-            </MayaBtn>
-          </div>
-        </div>
-
-        <MayaBtn style="width: 100%; justify-content: center;" @click="isCreateDialogOpen = false">
-          I've saved this key safely
-        </MayaBtn>
-      </div>
-    </MayaDialog>
-
     <!-- Revoke confirm -->
     <MayaAlertDialog
-      v-model:open="isConfirmDialogOpen"
+      v-model:open="isConfirmRevokeOpen"
       title="Revoke API key"
-      :description="`Revoking “${keyToRevoke?.name}” is permanent. Clients using this key will get 401 errors immediately.`"
+      :description="`Revoking “${selectedKey?.name}” is permanent. Clients using this key will get 401 errors immediately.`"
     >
       <template #action>
         <MayaBtn intent="danger" :disabled="revoking" @click="handleRevokeKey">
@@ -407,444 +397,334 @@ const formatTime = (dateStr: string | null) => {
 </template>
 
 <style scoped>
-.keys-workspace {
+.api-workspace {
   display: flex;
-  justify-content: center;
-  min-height: calc(100vh - 52px);
+  height: calc(100vh - 52px);
+  overflow: hidden;
   background-color: var(--maya-bg-root);
-  padding: 48px 32px 64px;
-  overflow-y: auto;
 }
 
-.keys-container {
-  width: 100%;
-  max-width: 800px;
+/* ── Left panel ── */
+.list-panel {
+  width: 280px;
+  flex-shrink: 0;
   display: flex;
   flex-direction: column;
-  gap: 24px;
+  border-right: 1px solid var(--maya-border);
+  background-color: var(--maya-bg-root);
 }
 
-.page-header {
+.list-toolbar {
   display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: 24px;
+  gap: 8px;
+  height: 52px;
+  padding: 0 12px;
+  border-bottom: 1px dashed var(--maya-border);
+  align-items: center;
 }
 
-.page-title {
-  font-size: 1.5rem;
-  font-weight: 700;
+.search-wrap {
+  position: relative;
+  flex: 1;
+}
+
+.search-icon {
+  position: absolute;
+  left: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 14px;
+  height: 14px;
+  color: var(--maya-text-muted);
+  pointer-events: none;
+}
+
+.search-input {
+  width: 100%;
+  height: 36px;
+  padding: 0 10px 0 32px;
+  border-radius: var(--maya-radius-md);
+  border: 1px solid var(--maya-border);
+  background-color: var(--maya-bg-root);
   color: var(--maya-text-primary);
-  margin: 0 0 6px;
-  letter-spacing: -0.03em;
-  line-height: 1.2;
+  font-size: 0.8125rem;
+  font-family: var(--maya-font-sans);
+  outline: none;
+  transition: border-color 0.15s ease;
 }
 
-.page-subtitle {
-  font-size: 0.875rem;
-  color: var(--maya-text-secondary);
-  margin: 0;
-  line-height: 1.55;
-  max-width: 36rem;
+.search-input:focus {
+  border-color: var(--maya-text-muted);
 }
 
-/* Stats */
-.stats-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 12px;
-}
-
-.stat-card :deep(.maya-card-body) {
-  padding: 14px 16px;
-}
-
-.stat-inner {
+.filter-bar {
   display: flex;
   align-items: center;
-  gap: 14px;
+  gap: 8px;
+  padding: 10px 12px;
+  border-bottom: 1px dashed var(--maya-border);
 }
 
-.stat-icon-wrap {
+.refresh-btn {
+  border: none;
+  background: transparent;
+  color: var(--maya-text-muted);
+  cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 40px;
-  height: 40px;
-  border-radius: var(--maya-radius-md);
-  background: var(--maya-bg-root);
-  border: 1px solid var(--maya-border);
-  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--maya-radius-sm);
+  transition: color 0.15s ease;
 }
 
-.stat-icon-wrap--success {
-  background: color-mix(in srgb, var(--maya-success) 10%, transparent);
-  border-color: color-mix(in srgb, var(--maya-success) 30%, transparent);
-}
-
-.stat-icon-wrap--muted {
-  background: var(--maya-bg-root);
-}
-
-.stat-icon {
+.refresh-btn:hover {
   color: var(--maya-text-primary);
 }
 
-.stat-icon--success {
-  color: var(--maya-success);
+.refresh-icon {
+  width: 13px;
+  height: 13px;
 }
 
-.stat-icon--muted {
-  color: var(--maya-text-muted);
-}
-
-.stat-copy {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  min-width: 0;
-}
-
-.stat-label {
-  font-size: 0.6875rem;
-  font-weight: 600;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--maya-text-muted);
-}
-
-.stat-value {
-  font-size: 1.375rem;
-  font-weight: 700;
-  letter-spacing: -0.03em;
-  color: var(--maya-text-primary);
-  line-height: 1.1;
-}
-
-/* Section typography */
-.section-title {
-  font-size: 0.9375rem;
-  font-weight: 600;
-  color: var(--maya-text-primary);
-  margin: 0;
-  letter-spacing: -0.02em;
-}
-
-.section-desc {
-  font-size: 0.8125rem;
-  color: var(--maya-text-secondary);
-  margin: 4px 0 0;
-  line-height: 1.45;
-}
-
-.keys-card-header {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 12px;
-  width: 100%;
-}
-
-.spinning {
-  animation: spin 0.9s linear infinite;
+.refresh-icon.spinning {
+  animation: spin 1s linear infinite;
 }
 
 @keyframes spin {
-  to { transform: rotate(360deg); }
+  100% { transform: rotate(360deg); }
 }
 
-/* Table inside card — flush with card body */
-.keys-card :deep(.maya-card-body) {
-  padding: 0;
-}
-
-.table-wrap {
-  width: 100%;
-  overflow-x: auto;
-}
-
-.keys-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 0.8125rem;
-}
-
-.keys-table th {
-  padding: 10px 20px;
-  text-align: left;
-  font-size: 0.6875rem;
-  font-weight: 600;
+.stats-strip {
+  padding: 8px 14px;
+  font-size: 0.625rem;
+  font-weight: 500;
+  letter-spacing: 0.02em;
   color: var(--maya-text-muted);
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
   border-bottom: 1px dashed var(--maya-border);
-  white-space: nowrap;
 }
 
-.th-right {
-  text-align: right;
+.entries-scroll {
+  flex: 1;
+  overflow-y: auto;
 }
 
-.keys-table td {
-  padding: 14px 20px;
-  border-bottom: 1px solid color-mix(in srgb, var(--maya-border) 45%, transparent);
-  color: var(--maya-text-primary);
-  vertical-align: middle;
-}
-
-.td-right {
-  text-align: right;
-}
-
-.td-right > * {
-  margin-left: auto;
-}
-
-.table-row:last-child td {
-  border-bottom: none;
-}
-
-.table-row:hover td {
-  background: color-mix(in srgb, var(--maya-bg-raised) 50%, transparent);
-}
-
-.key-name {
-  font-weight: 600;
-  letter-spacing: -0.01em;
-}
-
-.prefix-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 5px 10px;
-  background: var(--maya-bg-root);
-  border: 1px solid var(--maya-border);
-  border-radius: var(--maya-radius-md);
-  cursor: pointer;
-  font-family: inherit;
-  transition:
-    border-color var(--maya-duration) var(--maya-ease),
-    background var(--maya-duration) var(--maya-ease);
-}
-
-.prefix-chip:hover {
-  border-color: var(--maya-border-hover);
-  background: var(--maya-bg-raised);
-}
-
-.prefix-text {
-  font-family: var(--maya-font-mono);
-  font-size: 0.75rem;
-  color: var(--maya-text-secondary);
-}
-
-.prefix-copy-icon {
-  color: var(--maya-text-muted);
-  flex-shrink: 0;
-}
-
-.ts-cell {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.ts-icon {
-  color: var(--maya-text-muted);
-  flex-shrink: 0;
-}
-
-.ts-icon--used {
-  color: var(--maya-success);
-}
-
-.ts-lines {
-  display: flex;
-  flex-direction: column;
-  gap: 1px;
-}
-
-.ts-date {
-  font-size: 0.8125rem;
-  color: var(--maya-text-primary);
-  line-height: 1.2;
-}
-
-.ts-time {
-  font-size: 0.6875rem;
-  color: var(--maya-text-muted);
-  line-height: 1.2;
-}
-
-.state-box {
+.list-empty {
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 64px 32px;
-  gap: 12px;
+  padding: 48px 16px;
+  color: var(--maya-text-muted);
+  gap: 10px;
+  font-size: 0.8125rem;
 }
 
-.state-text {
-  font-size: 0.875rem;
-  color: var(--maya-text-secondary);
+.empty-icon {
+  width: 20px;
+  height: 20px;
+  opacity: 0.4;
 }
 
-/* API docs card */
-.docs-card-header {
-  display: flex;
-  align-items: flex-start;
-  gap: 12px;
-}
-
-.docs-header-icon {
-  color: var(--maya-text-secondary);
-  flex-shrink: 0;
-  margin-top: 2px;
-}
-
-.docs-body {
+.entries-list {
   display: flex;
   flex-direction: column;
+  gap: 2px;
+  padding: 8px;
 }
 
-.docs-block {
+.entry-item {
+  width: 100%;
+  padding: 10px 12px;
+  border: none;
+  border-radius: var(--maya-radius-md);
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 6px;
+  transition:
+    background var(--maya-duration) var(--maya-ease),
+    color var(--maya-duration) var(--maya-ease);
+  font-family: var(--maya-font-sans);
 }
 
-.docs-label {
-  margin: 0;
+.entry-item:hover {
+  background-color: color-mix(in srgb, var(--maya-bg-raised) 55%, transparent);
+}
+
+.entry-item.active {
+  background-color: var(--maya-bg-raised);
+}
+
+.entry-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+
+.entry-name {
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--maya-text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+
+.entry-slug {
+  font-family: var(--maya-font-mono);
   font-size: 0.6875rem;
-  font-weight: 600;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
+  color: var(--maya-text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.entry-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.625rem;
   color: var(--maya-text-muted);
 }
 
-.docs-divider {
-  height: 1px;
-  margin: 24px 0;
-  background: repeating-linear-gradient(
-    to right,
-    var(--maya-border) 0,
-    var(--maya-border) 4px,
-    transparent 4px,
-    transparent 8px
-  );
-}
-
-.endpoint-pill {
+.status-indicator {
   display: flex;
   align-items: center;
-  flex-wrap: wrap;
-  gap: 12px;
+  gap: 4px;
 }
 
-.endpoint-path {
-  font-family: var(--maya-font-mono);
-  font-size: 0.9375rem;
-  color: var(--maya-text-primary);
+.status-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background-color: var(--maya-border);
 }
 
-.endpoint-param {
-  color: var(--maya-info);
+.status-dot.live {
+  background-color: var(--maya-success);
 }
 
-.auth-line {
-  padding: 14px 16px;
-  border: 1px solid var(--maya-border);
-  border-radius: var(--maya-radius-md);
-  background: var(--maya-bg-root);
-  font-family: var(--maya-font-mono);
-  font-size: 0.875rem;
-  color: var(--maya-text-secondary);
-  line-height: 1.6;
-}
-
-.auth-token {
-  color: var(--maya-warning);
-  font-weight: 500;
-}
-
-.fields-list {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  border: 1px solid var(--maya-border);
-  border-radius: var(--maya-radius-md);
+/* ── Right panel ── */
+.detail-panel {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
   overflow: hidden;
 }
 
-.fields-row {
+.detail-empty {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  padding: 12px 16px;
-  border-bottom: 1px solid color-mix(in srgb, var(--maya-border) 45%, transparent);
+  justify-content: center;
+  flex: 1;
+  padding: 48px;
 }
 
-.fields-row:last-child {
-  border-bottom: none;
+.detail-empty > * {
+  max-width: 480px;
 }
 
-.field-name {
-  font-family: var(--maya-font-mono);
-  font-size: 0.8125rem;
-  color: var(--maya-text-primary);
-}
-
-.field-type {
-  font-family: var(--maya-font-mono);
-  font-size: 0.75rem;
-  color: var(--maya-text-muted);
-  text-align: right;
-}
-
-/* Dialog */
-.dialog-panel {
+.detail-workspace {
   display: flex;
   flex-direction: column;
-  gap: 20px;
-  width: 100%;
-  max-width: 420px;
+  height: 100%;
+  overflow: hidden;
 }
 
-.dialog-title {
-  font-size: 1.125rem;
-  font-weight: 700;
+.detail-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  height: 52px;
+  padding: 0 20px;
+  border-bottom: 1px dashed var(--maya-border);
+  background-color: var(--maya-bg-root);
+  gap: 12px;
+  flex-shrink: 0;
+}
+
+.detail-header-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  flex: 1;
+  overflow: hidden;
+}
+
+.detail-title {
+  font-size: 0.9375rem;
+  font-weight: 600;
   letter-spacing: -0.02em;
-  margin: 0;
+  color: var(--maya-text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.detail-header-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-shrink: 0;
+}
+
+.api-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.75rem;
+  color: var(--maya-text-muted);
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  font-family: var(--maya-font-sans);
+  transition: color 0.15s ease;
+}
+
+.api-link:hover {
   color: var(--maya-text-primary);
 }
 
-.dialog-desc {
-  font-size: 0.8125rem;
-  color: var(--maya-text-secondary);
-  margin: -12px 0 0;
-  line-height: 1.55;
+.detail-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 24px 32px;
+  display: flex;
+  flex-direction: column;
 }
 
-.dialog-actions {
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.field-label {
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--maya-text-muted);
+}
+
+.upload-actions {
   display: flex;
   justify-content: flex-end;
   gap: 8px;
-  margin-top: 4px;
 }
 
-.dialog-primary-btn :deep(.dialog-btn-spinner .maya-spinner-arc) {
-  stroke: var(--maya-btn-primary-text);
-}
-
-.dialog-primary-btn :deep(.dialog-btn-spinner .maya-spinner-track) {
+.upload-btn :deep(.upload-btn-spinner .maya-spinner-track) {
   stroke: color-mix(in srgb, var(--maya-btn-primary-text) 35%, transparent);
 }
 
-.dialog-btn-spinner--danger :deep(.maya-spinner-arc) {
-  stroke: #fff;
+.upload-btn :deep(.upload-btn-spinner .maya-spinner-arc) {
+  stroke: var(--maya-btn-primary-text);
 }
 
 .reveal-field {
@@ -887,23 +767,63 @@ const formatTime = (dateStr: string | null) => {
   color: #fff !important;
 }
 
-@media (max-width: 720px) {
-  .keys-workspace {
-    padding: 32px 16px 48px;
-  }
+.meta-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+}
 
-  .stats-grid {
-    grid-template-columns: 1fr;
-  }
+.meta-item {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
 
-  .page-header {
-    flex-direction: column;
-    align-items: stretch;
-  }
+.meta-label {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--maya-text-muted);
+}
 
-  .page-header .maya-btn {
-    width: 100%;
-    justify-content: center;
-  }
+.meta-value {
+  font-size: 0.8125rem;
+  color: var(--maya-text-primary);
+}
+
+code.meta-value {
+  font-family: var(--maya-font-mono);
+  font-size: 0.75rem;
+}
+
+.api-divider {
+  height: 1px;
+  background: repeating-linear-gradient(
+    to right,
+    var(--maya-border) 0,
+    var(--maya-border) 4px,
+    transparent 4px,
+    transparent 8px
+  );
+}
+
+.api-section {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.api-section-label {
+  margin: 0;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--maya-text-muted);
+}
+
+.dialog-btn-spinner--danger :deep(.maya-spinner-arc) {
+  stroke: #fff;
 }
 </style>

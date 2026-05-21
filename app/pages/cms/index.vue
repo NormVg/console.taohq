@@ -35,6 +35,25 @@ const form = ref({
   published: true
 })
 
+const rightTab = ref<'edit' | 'api'>('edit')
+
+const baseUrl = computed(() =>
+  typeof window !== 'undefined' ? window.location.origin : ''
+)
+
+const curlExample = computed(
+  () =>
+    `curl -X GET '${baseUrl.value}/api/content/${form.value.slug || 'your-slug'}' \\\n  -H 'Authorization: Bearer YOUR_API_KEY'`
+)
+
+const responseFields = [
+  { key: 'slug', type: 'string' },
+  { key: 'title', type: 'string' },
+  { key: 'type', type: 'text | markdown | json' },
+  { key: 'body', type: 'string' },
+  { key: 'publishedAt', type: 'ISO 8601 timestamp' },
+]
+
 // Dynamic placeholder text helper based on active type
 const placeholderText = computed(() => {
   if (form.value.type === 'json') {
@@ -348,6 +367,24 @@ const copyLink = async () => {
               <span class="editor-title">{{ form.title || 'Untitled' }}</span>
             </div>
 
+            <div class="tab-switcher">
+              <button
+                type="button"
+                class="tab-btn"
+                :class="{ active: rightTab === 'edit' }"
+                @click="rightTab = 'edit'"
+              >Edit</button>
+              <button
+                type="button"
+                class="tab-btn"
+                :class="{ active: rightTab === 'api' }"
+                @click="rightTab = 'api'"
+              >
+                <BookOpenIcon :size="12" />
+                API
+              </button>
+            </div>
+
             <div class="editor-header-right">
               <MayaBtn
                 v-if="!isCreating"
@@ -375,145 +412,187 @@ const copyLink = async () => {
           <!-- Form -->
           <div class="editor-body">
 
-            <div class="form-grid">
-              <!-- Title -->
-              <div class="field">
-                <label class="field-label">Title</label>
-                <MayaInput
-                  v-model="form.title"
-                  placeholder="e.g., Homepage Config"
-                />
-              </div>
-
-              <!-- Slug -->
-              <div class="field">
-                <label class="field-label">Slug</label>
-                <MayaInputGroup>
-                  <template #prefix>/content/</template>
+            <template v-if="rightTab === 'edit'">
+              <div class="form-grid">
+                <!-- Title -->
+                <div class="field">
+                  <label class="field-label">Title</label>
                   <MayaInput
-                    v-model="form.slug"
-                    placeholder="homepage-config"
+                    v-model="form.title"
+                    placeholder="e.g., Homepage Config"
                   />
-                </MayaInputGroup>
-                <span class="field-hint">Route: /api/content/{{ form.slug || 'slug' }}</span>
-              </div>
-
-              <!-- Format -->
-              <div class="field span-2">
-                <label class="field-label">Format</label>
-                <div class="format-control">
-                  <button
-                    type="button"
-                    class="format-option"
-                    :class="{ active: form.type === 'text' }"
-                    @click="form.type = 'text'"
-                  >
-                    <FileTextIcon :size="14" />
-                    <span>Text</span>
-                  </button>
-                  <button
-                    type="button"
-                    class="format-option"
-                    :class="{ active: form.type === 'markdown' }"
-                    @click="form.type = 'markdown'"
-                  >
-                    <FileCodeIcon :size="14" />
-                    <span>Markdown</span>
-                  </button>
-                  <button
-                    type="button"
-                    class="format-option"
-                    :class="{ active: form.type === 'json' }"
-                    @click="form.type = 'json'"
-                  >
-                    <CodeIcon :size="14" />
-                    <span>JSON</span>
-                  </button>
                 </div>
-              </div>
 
-              <!-- Options row -->
-              <div class="field span-2 options-row">
-                <div class="switch-field-group">
-                  <span class="switch-label">Published Status</span>
-                  <div class="switch-control-wrap">
-                    <MayaSwitch v-model="form.published" />
-                    <span class="switch-status-text" :class="{ 'is-live': form.published }">
-                      {{ form.published ? 'Live / Published' : 'Draft / Private' }}
-                    </span>
+                <!-- Slug -->
+                <div class="field">
+                  <label class="field-label">Slug</label>
+                  <MayaInputGroup>
+                    <template #prefix>/content/</template>
+                    <MayaInput
+                      v-model="form.slug"
+                      placeholder="homepage-config"
+                    />
+                  </MayaInputGroup>
+                  <span class="field-hint">Route: /api/content/{{ form.slug || 'slug' }}</span>
+                </div>
+
+                <!-- Format -->
+                <div class="field span-2">
+                  <label class="field-label">Format</label>
+                  <div class="format-control">
+                    <button
+                      type="button"
+                      class="format-option"
+                      :class="{ active: form.type === 'text' }"
+                      @click="form.type = 'text'"
+                    >
+                      <FileTextIcon :size="14" />
+                      <span>Text</span>
+                    </button>
+                    <button
+                      type="button"
+                      class="format-option"
+                      :class="{ active: form.type === 'markdown' }"
+                      @click="form.type = 'markdown'"
+                    >
+                      <FileCodeIcon :size="14" />
+                      <span>Markdown</span>
+                    </button>
+                    <button
+                      type="button"
+                      class="format-option"
+                      :class="{ active: form.type === 'json' }"
+                      @click="form.type = 'json'"
+                    >
+                      <CodeIcon :size="14" />
+                      <span>JSON</span>
+                    </button>
                   </div>
                 </div>
 
-                <div class="api-links-group" style="display: flex; gap: 16px; align-items: center;">
-                  <a
-                    v-if="!isCreating && currentEntry?.published"
-                    :href="`/api/content/${form.slug}`"
-                    target="_blank"
-                    class="api-link"
-                  >
-                    <ExternalLinkIcon :size="12" />
-                    Open API
-                  </a>
-                  <button
-                    v-if="!isCreating && currentEntry?.published"
-                    type="button"
-                    class="api-link"
-                    style="background: none; border: none; padding: 0; cursor: pointer; font-family: inherit;"
-                    @click="copyLink"
-                  >
-                    <CopyIcon :size="12" />
-                    Copy Link
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            <!-- Content body -->
-            <div class="body-section">
-              <div class="body-header">
-                <label class="field-label">Body</label>
-
-                <div v-if="form.type === 'markdown'" class="tab-switcher">
-                  <button
-                    class="tab-btn"
-                    :class="{ active: activeTab === 'edit' }"
-                    @click="activeTab = 'edit'"
-                  >Source</button>
-                  <button
-                    class="tab-btn"
-                    :class="{ active: activeTab === 'preview' }"
-                    @click="activeTab = 'preview'"
-                  >Preview</button>
-                </div>
-              </div>
-
-              <div class="editor-frame">
-                <!-- Source editor -->
-                <div v-if="activeTab === 'edit'" class="editor-input-wrap">
-                  <textarea
-                    v-model="form.body"
-                    class="code-textarea"
-                    :class="{ mono: form.type === 'json' || form.type === 'markdown' }"
-                    :placeholder="placeholderText"
-                    spellcheck="false"
-                  ></textarea>
-                </div>
-
-                <!-- Markdown rendered preview -->
-                <div v-else-if="activeTab === 'preview'" class="preview-wrap">
-                  <div v-if="!form.body.trim()" class="preview-empty">
-                    Write some markdown to see the rendered preview.
+                <!-- Options row -->
+                <div class="field span-2 options-row">
+                  <div class="switch-field-group">
+                    <span class="switch-label">Published Status</span>
+                    <div class="switch-control-wrap">
+                      <MayaSwitch v-model="form.published" />
+                      <span class="switch-status-text" :class="{ 'is-live': form.published }">
+                        {{ form.published ? 'Live / Published' : 'Draft / Private' }}
+                      </span>
+                    </div>
                   </div>
-                  <MayaProse v-else :content="form.body" />
-                </div>
 
-                <!-- JSON error -->
-                <div v-if="form.type === 'json' && jsonError" class="json-error">
-                  <span class="error-dot"></span>
-                  <span>{{ jsonError }}</span>
+                  <div class="api-links-group" style="display: flex; gap: 16px; align-items: center;">
+                    <a
+                      v-if="!isCreating && currentEntry?.published"
+                      :href="`/api/content/${form.slug}`"
+                      target="_blank"
+                      class="api-link"
+                    >
+                      <ExternalLinkIcon :size="12" />
+                      Open API
+                    </a>
+                    <button
+                      v-if="!isCreating && currentEntry?.published"
+                      type="button"
+                      class="api-link"
+                      style="background: none; border: none; padding: 0; cursor: pointer; font-family: inherit;"
+                      @click="copyLink"
+                    >
+                      <CopyIcon :size="12" />
+                      Copy Link
+                    </button>
+                  </div>
                 </div>
               </div>
-            </div>
+
+              <!-- Content body -->
+              <div class="body-section">
+                <div class="body-header">
+                  <label class="field-label">Body</label>
+
+                  <div v-if="form.type === 'markdown'" class="tab-switcher">
+                    <button
+                      class="tab-btn"
+                      :class="{ active: activeTab === 'edit' }"
+                      @click="activeTab = 'edit'"
+                    >Source</button>
+                    <button
+                      class="tab-btn"
+                      :class="{ active: activeTab === 'preview' }"
+                      @click="activeTab = 'preview'"
+                    >Preview</button>
+                  </div>
+                </div>
+
+                <div class="editor-frame">
+                  <!-- Source editor -->
+                  <div v-if="activeTab === 'edit'" class="editor-input-wrap">
+                    <textarea
+                      v-model="form.body"
+                      class="code-textarea"
+                      :class="{ mono: form.type === 'json' || form.type === 'markdown' }"
+                      :placeholder="placeholderText"
+                      spellcheck="false"
+                    ></textarea>
+                  </div>
+
+                  <!-- Markdown rendered preview -->
+                  <div v-else-if="activeTab === 'preview'" class="preview-wrap">
+                    <div v-if="!form.body.trim()" class="preview-empty">
+                      Write some markdown to see the rendered preview.
+                    </div>
+                    <MayaProse v-else :content="form.body" />
+                  </div>
+
+                  <!-- JSON error -->
+                  <div v-if="form.type === 'json' && jsonError" class="json-error">
+                    <span class="error-dot"></span>
+                    <span>{{ jsonError }}</span>
+                  </div>
+                </div>
+              </div>
+            </template>
+
+            <!-- API Tab -->
+            <template v-else>
+              <section class="api-section">
+                <h3 class="api-section-label">Endpoint</h3>
+                <div class="endpoint-row">
+                  <MayaBadge variant="outline" size="sm">GET</MayaBadge>
+                  <code class="endpoint-code">/api/content/<span class="endpoint-param">{{ form.slug || ':slug' }}</span></code>
+                </div>
+              </section>
+
+              <div class="api-divider" />
+
+              <section class="api-section">
+                <h3 class="api-section-label">Authentication</h3>
+                <div class="auth-line">
+                  <code>Authorization: Bearer </code>
+                  <span class="auth-token">YOUR_API_KEY</span>
+                </div>
+              </section>
+
+              <div class="api-divider" />
+
+              <section class="api-section">
+                <h3 class="api-section-label">Example request</h3>
+                <MayaCodeBlock :code="curlExample" lang="bash" :show-copy="true" />
+              </section>
+
+              <div class="api-divider" />
+
+              <section class="api-section">
+                <h3 class="api-section-label">Response fields</h3>
+                <ul class="fields-list">
+                  <li v-for="f in responseFields" :key="f.key" class="fields-row">
+                    <code class="field-name">{{ f.key }}</code>
+                    <span class="field-type">{{ f.type }}</span>
+                  </li>
+                </ul>
+              </section>
+            </template>
           </div>
         </div>
       </div>
@@ -1030,5 +1109,101 @@ const copyLink = async () => {
   border-radius: 50%;
   background-color: var(--maya-danger);
   flex-shrink: 0;
+}
+
+/* ── API Section ── */
+.api-section {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.api-section-label {
+  margin: 0;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--maya-text-muted);
+}
+
+.api-divider {
+  height: 1px;
+  margin: 8px 0;
+  background: repeating-linear-gradient(
+    to right,
+    var(--maya-border) 0,
+    var(--maya-border) 4px,
+    transparent 4px,
+    transparent 8px
+  );
+}
+
+.endpoint-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.endpoint-code {
+  font-family: var(--maya-font-mono);
+  font-size: 0.9375rem;
+  color: var(--maya-text-primary);
+}
+
+.endpoint-param {
+  color: var(--maya-info);
+}
+
+.auth-line {
+  padding: 14px 16px;
+  border: 1px solid var(--maya-border);
+  border-radius: var(--maya-radius-md);
+  background: var(--maya-bg-root);
+  font-family: var(--maya-font-mono);
+  font-size: 0.875rem;
+  color: var(--maya-text-secondary);
+  line-height: 1.6;
+}
+
+.auth-token {
+  color: var(--maya-warning);
+  font-weight: 500;
+}
+
+.fields-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  border: 1px solid var(--maya-border);
+  border-radius: var(--maya-radius-md);
+  overflow: hidden;
+}
+
+.fields-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px 16px;
+  border-bottom: 1px solid color-mix(in srgb, var(--maya-border) 45%, transparent);
+}
+
+.fields-row:last-child {
+  border-bottom: none;
+}
+
+.field-name {
+  font-family: var(--maya-font-mono);
+  font-size: 0.8125rem;
+  color: var(--maya-text-primary);
+}
+
+.field-type {
+  font-family: var(--maya-font-mono);
+  font-size: 0.75rem;
+  color: var(--maya-text-muted);
+  text-align: right;
 }
 </style>
