@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "skills": {
+    "maya-ui": {
+      "source": "TheAlphaOnes/maya-ui",
+      "sourceType": "github",
+      "skillPath": "skills/maya-ui/SKILL.md",
+      "computedHash": "b18accc25175f2ddf03ac301944a0f2e7fdf0b062411168fd3347c0045914487"
+    }
+  }
+}
