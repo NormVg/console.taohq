@@ -2,19 +2,7 @@
 export default defineNuxtConfig({
   compatibilityDate: '2025-07-15',
   devtools: { enabled: true },
-  modules: ['@pinia/nuxt', '@thenormvg/maya-ui'],
-  pinia: {
-    storesDirs: ['./app/stores/**']
-  },
-  build: {
-    transpile: ['@thenormvg/maya-ui']
-  },
-  vite: {
-    optimizeDeps: {
-      include: ['@thenormvg/maya-ui'],
-      exclude: ['lucide-vue-next']
-    }
-  },
+
   nitro: {
     serverAssets: [{ baseName: 'db-migrations', dir: 'server/db/migrations' }]
   },

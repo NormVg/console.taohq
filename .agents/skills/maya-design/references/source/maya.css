@@ -1,0 +1,374 @@
+/* ─────────────────────────────────────────────────
+   Maya UI — Global Design Tokens
+   ───────────────────────────────────────────────── */
+
+/* ─── Font Stack ─── */
+:root {
+  --maya-font-sans: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --maya-font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+
+  /* ─── Radii ─── */
+  --maya-radius-sm: 5px;
+  --maya-radius-md: 6px;
+  --maya-radius-lg: 8px;
+  --maya-radius-xl: 12px;
+
+  /* ─── Animation ─── */
+  --maya-duration: 150ms;
+  --maya-duration-bouncy: 400ms;
+  --maya-ease: cubic-bezier(0.16, 1, 0.3, 1);
+  --maya-ease-in: cubic-bezier(0.32, 0, 0.67, 0);
+  --maya-ease-out: cubic-bezier(0.33, 1, 0.68, 1);
+  --maya-ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+  --maya-ease-bouncy: cubic-bezier(0.25, 1, 0.5, 1.2);
+
+  /* ─── Dashed Line Decorators ─── */
+  --maya-dash-color: rgba(255, 255, 255, 0.12);
+  --maya-dash-size: 1px;
+  --maya-dash-pattern: 4px 4px;
+}
+
+/* ═══════════════════════════════════════════════════
+   DARK THEME (default)
+   ═══════════════════════════════════════════════════ */
+:root,
+html.dark {
+  --maya-bg-root: #0a0a0a;
+  --maya-bg-surface: #111111;
+  --maya-bg-raised: #191919;
+  --maya-bg-overlay: rgba(0, 0, 0, 0.6);
+  --maya-bg-topbar: rgba(10, 10, 10, 0.6);
+
+  --maya-text-primary: #ededed;
+  --maya-text-secondary: #888888;
+  --maya-text-muted: #555555;
+  --maya-text-inverse: #0a0a0a;
+
+  --maya-border: rgba(255, 255, 255, 0.08);
+  --maya-border-strong: rgba(255, 255, 255, 0.14);
+  --maya-border-hover: rgba(255, 255, 255, 0.22);
+
+  /* Depth & Patterns */
+  --maya-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.5);
+  --maya-shadow-md: 0 8px 30px rgba(0, 0, 0, 0.3), 0 0 0 1px rgba(255, 255, 255, 0.08);
+  /* Crisp outer ring and deep shadow */
+  --maya-shadow-inset: inset 0 1px 2px rgba(0, 0, 0, 0.5), inset 0 0 0 1px rgba(0, 0, 0, 0.2);
+  --maya-gradient-surface: linear-gradient(180deg, rgba(255, 255, 255, 0.03) 0%, rgba(255, 255, 255, 0) 100%);
+  --maya-pattern-stripes: repeating-linear-gradient(-45deg,
+      rgba(255, 255, 255, 0.04),
+      rgba(255, 255, 255, 0.04) 1px,
+      transparent 1px,
+      transparent 6px);
+  --maya-skeleton-base: rgba(255, 255, 255, 0.04);
+  --maya-skeleton-shimmer: rgba(255, 255, 255, 0.08);
+  --maya-code-bg: #0a0a0a;
+
+  /* Btn surfaces */
+  --maya-btn-primary-bg: #ededed;
+  --maya-btn-primary-bg-hover: #ffffff;
+  --maya-btn-primary-text: #0a0a0a;
+  --maya-btn-primary-gradient: linear-gradient(180deg, rgba(255, 255, 255, 0.12) 0%, rgba(255, 255, 255, 0) 50%, rgba(0, 0, 0, 0.08) 100%);
+  --maya-btn-primary-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.5),
+    inset 0 -2px 0 rgba(0, 0, 0, 0.15),
+    0 0 0 1px rgba(0, 0, 0, 0.1),
+    0 1px 2px rgba(0, 0, 0, 0.2);
+
+  --maya-btn-secondary-bg: transparent;
+  --maya-btn-secondary-bg-hover: rgba(255, 255, 255, 0.06);
+  --maya-btn-secondary-text: #ededed;
+  --maya-btn-secondary-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.04),
+    0 1px 2px rgba(0, 0, 0, 0.1);
+
+  --maya-btn-ghost-bg: transparent;
+  --maya-btn-ghost-bg-hover: rgba(255, 255, 255, 0.06);
+  --maya-btn-ghost-text: #888888;
+  --maya-btn-ghost-text-hover: #ededed;
+
+  /* Input surfaces */
+  --maya-input-bg: rgba(18, 18, 18, 0.6);
+  --maya-input-gradient: linear-gradient(180deg, rgba(255, 255, 255, 0.02) 0%, rgba(255, 255, 255, 0) 100%);
+  --maya-input-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.4), inset 0 0 0 1px rgba(255, 255, 255, 0.04), 0 1px 1px rgba(255, 255, 255, 0.02);
+  --maya-input-focus-border: rgba(255, 255, 255, 0.3);
+
+  /* Checkbox */
+  --maya-checkbox-bg: #121212;
+  --maya-checkbox-gradient: linear-gradient(180deg, rgba(255, 255, 255, 0.04) 0%, rgba(255, 255, 255, 0) 100%);
+  --maya-checkbox-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.2), 0 1px 2px rgba(0, 0, 0, 0.1);
+  --maya-checkbox-checked-bg: #ededed;
+  --maya-checkbox-checked-border: #ededed;
+  --maya-checkbox-check-color: #0a0a0a;
+
+  /* Table */
+  --maya-table-bg: #0a0a0a;
+  --maya-table-head-bg: rgba(255, 255, 255, 0.03);
+  --maya-table-head-text: #888888;
+  --maya-table-row-hover: rgba(255, 255, 255, 0.02);
+  --maya-table-row-border: rgba(255, 255, 255, 0.05);
+
+  /* Dashed */
+  --maya-dash-color: rgba(255, 255, 255, 0.2);
+
+  /* ─── Semantic Colors (desaturated to match monochrome palette) ─── */
+  /* Success - Emerald */
+  --maya-success: #30A46C;
+  --maya-success-hover: #33B074;
+  --maya-success-muted: rgba(48, 164, 108, 0.15);
+  --maya-success-border: rgba(48, 164, 108, 0.3);
+  --maya-success-text: #4CC38A;
+
+  /* Warning - Amber */
+  --maya-warning: #F76B15;
+  --maya-warning-hover: #FF761A;
+  --maya-warning-muted: rgba(247, 107, 21, 0.15);
+  --maya-warning-border: rgba(247, 107, 21, 0.3);
+  --maya-warning-text: #FFB073;
+
+  /* Danger - Ruby */
+  --maya-danger: #E5484D;
+  --maya-danger-hover: #EC5D5E;
+  --maya-danger-muted: rgba(229, 72, 77, 0.15);
+  --maya-danger-border: rgba(229, 72, 77, 0.3);
+  --maya-danger-text: #FFB2B6;
+
+  /* Info - Cobalt */
+  --maya-info: #0090FF;
+  --maya-info-hover: #119BFF;
+  --maya-info-muted: rgba(0, 144, 255, 0.15);
+  --maya-info-border: rgba(0, 144, 255, 0.3);
+  --maya-info-text: #52A9FF;
+
+  color-scheme: dark;
+}
+
+/* ═══════════════════════════════════════════════════
+   LIGHT THEME
+   ═══════════════════════════════════════════════════ */
+html.light {
+  --maya-bg-root: #ffffff;
+  --maya-bg-surface: #f8f8f8;
+  --maya-bg-raised: #f0f0f0;
+  --maya-bg-overlay: rgba(0, 0, 0, 0.3);
+  --maya-bg-topbar: rgba(255, 255, 255, 0.6);
+
+  --maya-text-primary: #171717;
+  --maya-text-secondary: #6b6b6b;
+  --maya-text-muted: #a3a3a3;
+  --maya-text-inverse: #ffffff;
+
+  --maya-border: rgba(0, 0, 0, 0.08);
+  --maya-border-strong: rgba(0, 0, 0, 0.14);
+  --maya-border-hover: rgba(0, 0, 0, 0.22);
+
+  /* Depth & Patterns */
+  --maya-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.04);
+  --maya-shadow-md: 0 8px 30px rgba(0, 0, 0, 0.12), 0 0 0 1px rgba(0, 0, 0, 0.03);
+  /* Premium Vercel drop shadow */
+  --maya-shadow-inset: inset 0 1px 2px rgba(0, 0, 0, 0.04), inset 0 0 0 1px rgba(0, 0, 0, 0.02);
+  --maya-gradient-surface: linear-gradient(180deg, rgba(0, 0, 0, 0.01) 0%, rgba(0, 0, 0, 0) 100%);
+  --maya-pattern-stripes: repeating-linear-gradient(-45deg,
+      rgba(0, 0, 0, 0.05),
+      rgba(0, 0, 0, 0.05) 1px,
+      transparent 1px,
+      transparent 6px);
+  --maya-skeleton-base: rgba(0, 0, 0, 0.04);
+  --maya-skeleton-shimmer: rgba(0, 0, 0, 0.08);
+  --maya-code-bg: #f5f5f5;
+
+  /* Btn surfaces */
+  --maya-btn-primary-bg: #171717;
+  --maya-btn-primary-bg-hover: #303030;
+  --maya-btn-primary-text: #ffffff;
+  --maya-btn-primary-gradient: linear-gradient(180deg, rgba(255, 255, 255, 0.12) 0%, rgba(255, 255, 255, 0) 50%, rgba(0, 0, 0, 0.15) 100%);
+  --maya-btn-primary-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.15),
+    inset 0 -2px 0 rgba(0, 0, 0, 0.25),
+    0 0 0 1px rgba(0, 0, 0, 0.12),
+    0 1px 2px rgba(0, 0, 0, 0.12);
+
+  --maya-btn-secondary-bg: transparent;
+  --maya-btn-secondary-bg-hover: rgba(0, 0, 0, 0.04);
+  --maya-btn-secondary-text: #171717;
+  --maya-btn-secondary-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.4),
+    0 1px 2px rgba(0, 0, 0, 0.04);
+
+  --maya-btn-ghost-bg: transparent;
+  --maya-btn-ghost-bg-hover: rgba(0, 0, 0, 0.04);
+  --maya-btn-ghost-text: #6b6b6b;
+  --maya-btn-ghost-text-hover: #171717;
+
+  /* Input surfaces */
+  --maya-input-bg: #ffffff;
+  --maya-input-gradient: linear-gradient(180deg, rgba(0, 0, 0, 0.01) 0%, rgba(0, 0, 0, 0) 100%);
+  --maya-input-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.02), inset 0 0 0 1px rgba(0, 0, 0, 0.06), 0 1px 2px rgba(0, 0, 0, 0.04);
+  --maya-input-focus-border: rgba(0, 0, 0, 0.3);
+
+  /* Checkbox */
+  --maya-checkbox-bg: #ffffff;
+  --maya-checkbox-gradient: linear-gradient(180deg, rgba(0, 0, 0, 0.02) 0%, rgba(0, 0, 0, 0) 100%);
+  --maya-checkbox-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.06), 0 1px 1px rgba(0, 0, 0, 0.04);
+  --maya-checkbox-checked-bg: #171717;
+  --maya-checkbox-checked-border: #171717;
+  --maya-checkbox-check-color: #ffffff;
+
+  /* Table */
+  --maya-table-bg: #ffffff;
+  --maya-table-head-bg: rgba(0, 0, 0, 0.02);
+  --maya-table-head-text: #6b6b6b;
+  --maya-table-row-hover: rgba(0, 0, 0, 0.02);
+  --maya-table-row-border: rgba(0, 0, 0, 0.06);
+
+  /* Dashed */
+  --maya-dash-color: rgba(0, 0, 0, 0.24);
+
+  /* Success - Emerald */
+  --maya-success: #30A46C;
+  --maya-success-hover: #298C5A;
+  --maya-success-muted: rgba(48, 164, 108, 0.1);
+  --maya-success-border: rgba(48, 164, 108, 0.2);
+  --maya-success-text: #18794E;
+
+  /* Warning - Amber */
+  --maya-warning: #F76B15;
+  --maya-warning-hover: #DB5B0F;
+  --maya-warning-muted: rgba(247, 107, 21, 0.1);
+  --maya-warning-border: rgba(247, 107, 21, 0.2);
+  --maya-warning-text: #C25100;
+
+  /* Danger - Ruby */
+  --maya-danger: #E5484D;
+  --maya-danger-hover: #CE3A43;
+  --maya-danger-muted: rgba(229, 72, 77, 0.1);
+  --maya-danger-border: rgba(229, 72, 77, 0.2);
+  --maya-danger-text: #CC1825;
+
+  /* Info - Cobalt */
+  --maya-info: #0090FF;
+  --maya-info-hover: #007EE6;
+  --maya-info-muted: rgba(0, 144, 255, 0.1);
+  --maya-info-border: rgba(0, 144, 255, 0.2);
+  --maya-info-text: #0068D6;
+
+  color-scheme: light;
+}
+
+/* ─── Global Resets for Maya Components ─── */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+.maya-btn,
+.maya-input,
+.maya-textarea,
+.maya-checkbox,
+.maya-table {
+  font-family: var(--maya-font-sans);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* ─── Dashed Line Utility ─── */
+.maya-dash-top {
+  border-top: var(--maya-dash-size) dashed var(--maya-dash-color) !important;
+}
+
+.maya-dash-bottom {
+  border-bottom: var(--maya-dash-size) dashed var(--maya-dash-color) !important;
+}
+
+.maya-dash-left {
+  border-left: var(--maya-dash-size) dashed var(--maya-dash-color) !important;
+}
+
+.maya-dash-right {
+  border-right: var(--maya-dash-size) dashed var(--maya-dash-color) !important;
+}
+
+.maya-dash-all {
+  border: var(--maya-dash-size) dashed var(--maya-dash-color) !important;
+}
+
+/* ─── Icon Swap Transition (bouncy scale + fade) ─── */
+.maya-icon-swap-enter-active {
+  transition: all 300ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.maya-icon-swap-leave-active {
+  transition: all 150ms cubic-bezier(0.55, 0.05, 0.68, 0.19);
+}
+
+.maya-icon-swap-enter-from {
+  opacity: 0;
+  transform: scale(0.5);
+}
+
+.maya-icon-swap-leave-to {
+  opacity: 0;
+  transform: scale(0.5);
+}
+
+/* ─── Panel Fade Transition (tab switching, content reveal) ─── */
+.maya-panel-fade-enter-active {
+  transition: opacity 200ms ease, transform 200ms ease;
+}
+
+.maya-panel-fade-leave-active {
+  transition: opacity 120ms ease;
+}
+
+.maya-panel-fade-enter-from {
+  opacity: 0;
+  transform: translateY(4px);
+}
+
+.maya-panel-fade-leave-to {
+  opacity: 0;
+}
+
+/* ─── Simple Fade (generic content swap) ─── */
+.maya-fade-enter-active,
+.maya-fade-leave-active {
+  transition: opacity 150ms ease;
+}
+
+.maya-fade-enter-from,
+.maya-fade-leave-to {
+  opacity: 0;
+}
+
+/* ─── Dialog / Overlay Transitions ─── */
+.maya-overlay-fade-enter-active,
+.maya-overlay-fade-leave-active {
+  transition: opacity 250ms var(--maya-ease);
+}
+
+.maya-overlay-fade-enter-from,
+.maya-overlay-fade-leave-to {
+  opacity: 0;
+}
+
+.maya-dialog-zoom-enter-active {
+  transition: opacity 250ms var(--maya-ease-out), transform 300ms var(--maya-ease-out), filter 250ms var(--maya-ease-out);
+}
+
+.maya-dialog-zoom-leave-active {
+  transition: opacity 150ms var(--maya-ease-in), transform 150ms var(--maya-ease-in), filter 150ms var(--maya-ease-in);
+}
+
+.maya-dialog-zoom-enter-from,
+.maya-dialog-zoom-leave-to {
+  opacity: 0;
+  transform: scale(0.96) translateY(8px);
+  filter: blur(8px);
+}
+
+/* ─── View Transition (Theme Toggle) ─── */
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation: none;
+  mix-blend-mode: normal;
+}

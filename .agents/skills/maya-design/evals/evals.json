@@ -1,0 +1,23 @@
+{
+  "skill_name": "maya-design",
+  "evals": [
+    {
+      "id": "copy-button-toast-source",
+      "prompt": "In this Nuxt app, add Maya source components for a save action: a Button that triggers a success toast. Do not install @thenormvg/maya-ui. Put copied components under components/maya and composables under composables/maya.",
+      "expected_output": "Copies exact relevant Maya source for Btn, Toast/Toaster, useToast, useMayaSound if retained, wires maya.css once, updates imports to the target folders, and explains any removed sound dependency.",
+      "files": []
+    },
+    {
+      "id": "customize-theme-source",
+      "prompt": "Bring Maya Card, Input, and Btn into my Vue app from source, then customize the theme to use an emerald accent and slightly softer 8px button radius. Keep the Maya motion and shadow style.",
+      "expected_output": "Reads source-map, copies exact component and CSS source, customizes CSS variables before touching internals, preserves active/focus/hover states, and documents the theme changes.",
+      "files": []
+    },
+    {
+      "id": "dashboard-component-set",
+      "prompt": "Create a dashboard shell from Maya source using AppShell, Sidebar, Topbar, DataTable, Badge, and ThemeToggle. Keep all code local to the app; no package install.",
+      "expected_output": "Selects the requested components plus local dependencies, places them in a consistent Maya namespace, wires theme CSS and theme composable, and avoids copying unrelated components.",
+      "files": []
+    }
+  ]
+}

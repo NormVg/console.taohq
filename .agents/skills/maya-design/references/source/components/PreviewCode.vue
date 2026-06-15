@@ -1,0 +1,332 @@
+<template>
+  <div class="maya-preview-code">
+    <div v-if="title || description" class="maya-preview-code-label">
+      <h3 v-if="title">{{ title }}</h3>
+      <p v-if="description">{{ description }}</p>
+    </div>
+
+    <div class="maya-preview-code-card">
+      <div class="maya-preview-code-toolbar">
+        <button class="maya-preview-code-tab" :class="{ active: view === 'preview' }"
+          @click="view = 'preview'">Preview</button>
+        <button class="maya-preview-code-tab" :class="{ active: view === 'code' }" @click="view = 'code'">Code</button>
+        <button v-if="code" class="maya-preview-code-copy" @click="copyCode"
+          :aria-label="copied ? 'Copied' : 'Copy code'">
+          <Transition name="maya-icon-swap" mode="out-in">
+            <svg v-if="!copied" key="copy" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+              stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+              <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+            </svg>
+            <svg v-else key="check" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--maya-success)"
+              stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="20 6 9 17 4 12" />
+            </svg>
+          </Transition>
+        </button>
+      </div>
+
+      <div class="maya-preview-code-panels" :style="panelContainerStyle">
+        <Transition
+          name="maya-panel-fade"
+          mode="out-in"
+          @before-enter="onTransitionStart"
+          @after-enter="onTransitionEnd"
+          @before-leave="onTransitionStart"
+          @after-leave="onTransitionEnd"
+        >
+          <div
+            v-if="view === 'preview'"
+            ref="activePanelRef"
+            key="preview"
+            class="maya-preview-code-panel maya-preview-code-canvas"
+            :style="{ overflowY: previewHeight !== 'auto' ? 'auto' : 'visible' }"
+          >
+            <div class="maya-preview-code-panel-inner">
+              <slot name="preview" />
+            </div>
+          </div>
+
+          <div
+            v-else
+            ref="activePanelRef"
+            key="code"
+            class="maya-preview-code-panel maya-preview-code-source"
+            :style="{ overflowY: codeHeight !== 'auto' ? 'auto' : 'visible' }"
+          >
+            <div class="maya-preview-code-panel-inner">
+              <div v-if="highlighted" v-html="highlighted" />
+              <slot v-else name="code" />
+            </div>
+          </div>
+        </Transition>
+      </div>
+    </div>
+  </div>
+</template>
+
+<script setup>
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { useShiki } from '../composables/useShiki'
+
+const props = defineProps({
+  title: { type: String, default: '' },
+  description: { type: String, default: '' },
+  code: { type: String, default: '' },
+  lang: { type: String, default: 'vue' },
+  previewHeight: { type: String, default: 'auto' },
+  codeHeight: { type: String, default: 'auto' },
+})
+
+const view = ref('preview')
+const copied = ref(false)
+const highlighted = ref('')
+const animatedHeight = ref('auto')
+const activePanelRef = ref(null)
+const isPanelTransitioning = ref(false)
+let resizeObserver = null
+const { highlight: shikiHighlight, currentTheme } = useShiki()
+
+async function doHighlight() {
+  if (!props.code) return
+  try {
+    highlighted.value = await shikiHighlight(props.code, props.lang)
+  } catch {
+    highlighted.value = `<pre><code>${props.code.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</code></pre>`
+  }
+}
+
+onMounted(doHighlight)
+watch(() => [props.code, props.lang], doHighlight)
+watch(currentTheme, doHighlight)
+
+const activePanelHeightProp = computed(() => (view.value === 'preview' ? props.previewHeight : props.codeHeight))
+
+const panelContainerStyle = computed(() => ({
+  height: animatedHeight.value,
+  transition: 'height 220ms var(--maya-ease-out)',
+  overflow: isPanelTransitioning.value ? 'hidden' : 'visible'
+}))
+
+function readInnerHeight() {
+  const el = activePanelRef.value
+  return el ? el.offsetHeight : 0
+}
+
+function updateAnimatedHeight() {
+  if (activePanelHeightProp.value !== 'auto') {
+    animatedHeight.value = activePanelHeightProp.value
+    return
+  }
+  const nextHeight = readInnerHeight()
+  if (nextHeight > 0) animatedHeight.value = `${nextHeight}px`
+}
+
+function attachResizeObserver() {
+  if (resizeObserver) resizeObserver.disconnect()
+  if (!activePanelRef.value || activePanelHeightProp.value !== 'auto') return
+  resizeObserver = new ResizeObserver(() => {
+    updateAnimatedHeight()
+  })
+  resizeObserver.observe(activePanelRef.value)
+}
+
+watch(view, async () => {
+  const currentHeight = readInnerHeight()
+  if (currentHeight > 0 && activePanelHeightProp.value === 'auto') {
+    animatedHeight.value = `${currentHeight}px`
+  }
+
+  await nextTick()
+  updateAnimatedHeight()
+  attachResizeObserver()
+})
+
+watch(activePanelRef, () => {
+  updateAnimatedHeight()
+  attachResizeObserver()
+})
+
+watch(() => [props.previewHeight, props.codeHeight], () => {
+  updateAnimatedHeight()
+  attachResizeObserver()
+})
+
+onMounted(async () => {
+  await nextTick()
+  updateAnimatedHeight()
+  attachResizeObserver()
+})
+
+onBeforeUnmount(() => {
+  if (resizeObserver) resizeObserver.disconnect()
+})
+
+function copyCode() {
+  navigator.clipboard.writeText(props.code)
+  copied.value = true
+  setTimeout(() => { copied.value = false }, 1500)
+}
+
+function onTransitionStart() {
+  isPanelTransitioning.value = true
+}
+
+function onTransitionEnd() {
+  isPanelTransitioning.value = false
+}
+</script>
+
+<style scoped>
+.maya-preview-code {
+  margin-bottom: 40px;
+}
+
+.maya-preview-code-label h3 {
+  font-size: 0.875rem;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+  margin-bottom: 4px;
+  color: var(--maya-text-primary);
+  font-family: var(--maya-font-sans);
+}
+
+.maya-preview-code-label p {
+  font-size: 0.8125rem;
+  color: var(--maya-text-secondary);
+  margin-bottom: 12px;
+  font-family: var(--maya-font-sans);
+}
+
+.maya-preview-code-card {
+  border: 1px solid var(--maya-border);
+  border-radius: var(--maya-radius-lg);
+  transition: border-color var(--maya-duration) var(--maya-ease);
+}
+
+.maya-preview-code-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  border-bottom: 1px dashed var(--maya-dash-color);
+  background: var(--maya-bg-surface);
+  border-top-left-radius: calc(var(--maya-radius-lg) - 1px);
+  border-top-right-radius: calc(var(--maya-radius-lg) - 1px);
+  transition: background-color var(--maya-duration) var(--maya-ease);
+}
+
+.maya-preview-code-tab {
+  background: none;
+  border: none;
+  border-bottom: 1.5px solid transparent;
+  padding: 10px 16px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--maya-text-muted);
+  cursor: pointer;
+  transition: color var(--maya-duration) var(--maya-ease);
+  margin-bottom: -1px;
+  font-family: var(--maya-font-sans);
+  position: relative;
+}
+
+.maya-preview-code-tab::after {
+  content: '';
+  position: absolute;
+  inset: -4px -6px;
+}
+
+.maya-preview-code-tab:hover {
+  color: var(--maya-text-secondary);
+}
+
+.maya-preview-code-tab.active {
+  color: var(--maya-text-primary);
+  border-bottom-color: var(--maya-text-primary);
+}
+
+.maya-preview-code-copy {
+  margin-left: auto;
+  margin-right: 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: none;
+  color: var(--maya-text-muted);
+  cursor: pointer;
+  padding: 4px;
+  border-radius: var(--maya-radius-sm);
+  transition:
+    color var(--maya-duration) var(--maya-ease),
+    transform var(--maya-duration-bouncy) var(--maya-ease-bouncy);
+  position: relative;
+}
+
+.maya-preview-code-copy::after {
+  content: '';
+  position: absolute;
+  inset: -6px;
+}
+
+.maya-preview-code-copy:hover {
+  color: var(--maya-text-primary);
+}
+
+.maya-preview-code-copy:active {
+  transform: scale(0.88);
+}
+
+.maya-preview-code-panels {
+  display: block;
+}
+
+.maya-preview-code-panel {
+  width: 100%;
+}
+
+.maya-preview-code-canvas {
+  padding: 40px 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 140px;
+  background: var(--maya-pattern-stripes), var(--maya-bg-root);
+  border-bottom-left-radius: calc(var(--maya-radius-lg) - 1px);
+  border-bottom-right-radius: calc(var(--maya-radius-lg) - 1px);
+}
+
+.maya-preview-code-source {
+  background: var(--maya-code-bg);
+  overflow-x: auto;
+  border-bottom-left-radius: calc(var(--maya-radius-lg) - 1px);
+  border-bottom-right-radius: calc(var(--maya-radius-lg) - 1px);
+}
+
+.maya-preview-code-panel-inner {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.maya-preview-code-source .maya-preview-code-panel-inner {
+  display: block;
+}
+
+.maya-preview-code-source :deep(pre) {
+  margin: 0;
+  padding: 16px 20px;
+  background: transparent !important;
+  font-family: var(--maya-font-mono);
+  font-size: 0.8125rem;
+  line-height: 1.65;
+  overflow-x: auto;
+}
+
+.maya-preview-code-source :deep(code) {
+  font-family: var(--maya-font-mono);
+  font-size: 0.8125rem;
+  line-height: 1.65;
+}
+</style>

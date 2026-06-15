@@ -1,0 +1,61 @@
+export function getSidebarDates() {
+  const dates = []
+  const today = new Date()
+  
+  // Helper for consistent local date formatting
+  const getYMD = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+
+  // Start from day after tomorrow
+  const startDate = new Date(today)
+  startDate.setDate(startDate.getDate() + 2)
+
+  const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+
+  for (let i = 0; i < 4; i++) {
+    const d = new Date(startDate)
+    d.setDate(d.getDate() + i)
+    
+    const dayName = days[d.getDay()]
+    const dateNum = d.getDate().toString().padStart(2, '0')
+    const monthName = months[d.getMonth()]
+    
+    dates.push({
+      id: getYMD(d),
+      label: `${dayName} ${dateNum} ${monthName}`,
+      number: dateNum
+    })
+  }
+
+  return dates
+}
+
+export function formatContextLabel(context: string): string {
+  if (!context) return 'Someday'
+  if (context === 'today') return 'Today'
+  if (context === 'tomorrow') return 'Tomorrow'
+  if (context === 'someday') return 'Someday'
+  
+  if (context.startsWith('date-')) {
+    const dateStr = context.replace('date-', '')
+    const parts = dateStr.split('-')
+    if (parts.length !== 3) return context
+    
+    // Parse as local time to avoid timezone offset shifts
+    const d = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]))
+    
+    // Check if it's a valid date
+    if (isNaN(d.getTime())) return context
+    
+    const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+    
+    const dayName = days[d.getDay()]
+    const dateNum = d.getDate().toString().padStart(2, '0')
+    const monthName = months[d.getMonth()]
+    
+    return `${dayName} ${dateNum} ${monthName}`
+  }
+  
+  return context
+}
