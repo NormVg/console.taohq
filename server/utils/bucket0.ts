@@ -1,9 +1,4 @@
-import {
-  S3Client,
-  PutObjectCommand,
-  GetObjectCommand,
-  DeleteObjectCommand,
-} from '@aws-sdk/client-s3'
+import { AwsClient } from 'aws4fetch'
 
 export function getS3Config() {
   const config = useRuntimeConfig()
@@ -22,16 +17,13 @@ export function getS3Config() {
   }
 }
 
-export function getS3Client() {
+export function getAwsClient() {
   const config = getS3Config()
-  return new S3Client({
+  return new AwsClient({
+    accessKeyId: config.accessKeyId,
+    secretAccessKey: config.secretAccessKey,
+    service: 's3',
     region: 'auto',
-    endpoint: 'https://s3.bucket0.com',
-    credentials: {
-      accessKeyId: config.accessKeyId,
-      secretAccessKey: config.secretAccessKey
-    },
-    forcePathStyle: true
   })
 }
 
@@ -59,17 +51,23 @@ export function inferFileName(path: string): string {
 
 export async function uploadToBucket0(file: { data: Uint8Array; filename?: string; type?: string }, path: string) {
   const config = getS3Config()
-  const s3 = getS3Client()
+  const aws = getAwsClient()
   
-  const bytes = Buffer.from(file.data)
+  const bytes = file.data
   
   try {
-    await s3.send(new PutObjectCommand({
-      Bucket: config.bucket,
-      Key: path,
-      Body: bytes,
-      ContentType: file.type || 'application/octet-stream'
-    }))
+    const url = `https://s3.bucket0.com/${config.bucket}/${path}`
+    const res = await aws.fetch(url, {
+      method: 'PUT',
+      body: bytes,
+      headers: {
+        'Content-Type': file.type || 'application/octet-stream'
+      }
+    })
+    
+    if (!res.ok) {
+      throw new Error(`Upload failed: ${res.status} ${res.statusText}`)
+    }
   } catch (error: any) {
     throw createError({
       statusCode: 502,
@@ -87,27 +85,26 @@ export async function uploadToBucket0(file: { data: Uint8Array; filename?: strin
 
 export async function downloadFromBucket0(key: string) {
   const config = getS3Config()
-  const s3 = getS3Client()
+  const aws = getAwsClient()
 
   try {
-    const response = await s3.send(new GetObjectCommand({
-      Bucket: config.bucket,
-      Key: key
-    }))
+    const url = `https://s3.bucket0.com/${config.bucket}/${key}`
+    const res = await aws.fetch(url, { method: 'GET' })
 
-    if (!response.Body) {
-      throw new Error('Empty body')
+    if (!res.ok) {
+      throw new Error(`Download failed: ${res.status} ${res.statusText}`)
     }
 
-    const byteArray = await response.Body.transformToByteArray()
+    const arrayBuffer = await res.arrayBuffer()
+    const { Buffer } = await import('node:buffer')
     
     return {
-      data: Buffer.from(byteArray),
-      contentType: response.ContentType || 'application/octet-stream'
+      data: Buffer.from(arrayBuffer),
+      contentType: res.headers.get('Content-Type') || 'application/octet-stream'
     }
   } catch (error: any) {
     throw createError({
-      statusCode: error.$metadata?.httpStatusCode || 500,
+      statusCode: 502,
       statusMessage: error.message || 'Bucket0 S3 download failed'
     })
   }
@@ -115,16 +112,18 @@ export async function downloadFromBucket0(key: string) {
 
 export async function deleteFromBucket0(key: string) {
   const config = getS3Config()
-  const s3 = getS3Client()
+  const aws = getAwsClient()
 
   try {
-    await s3.send(new DeleteObjectCommand({
-      Bucket: config.bucket,
-      Key: key
-    }))
+    const url = `https://s3.bucket0.com/${config.bucket}/${key}`
+    const res = await aws.fetch(url, { method: 'DELETE' })
+    if (!res.ok && res.status !== 404) {
+      throw new Error(`Delete failed: ${res.status} ${res.statusText}`)
+    }
+    return true
   } catch (error: any) {
     throw createError({
-      statusCode: error.$metadata?.httpStatusCode || 500,
+      statusCode: 502,
       statusMessage: error.message || 'Bucket0 S3 delete failed'
     })
   }

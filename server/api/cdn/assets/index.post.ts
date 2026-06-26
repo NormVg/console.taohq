@@ -35,31 +35,21 @@ export default defineEventHandler(async (event) => {
     finalPath = file.filename || ''
   }
   const path = sanitizeAssetPath(finalPath)
-  const bucketUpload = await uploadToBucket0({
-    data: file.data,
-    filename: file.filename,
-    type: file.type
-  }, path)
-  const cacheData = Buffer.from(file.data).toString('base64')
 
-  const db = useDb()
-  const [asset] = await db
-    .insert(cdnAssets)
-    .values({
-      key: path,
-      fileName: bucketUpload.fileName,
-      mimeType: file.type || 'application/octet-stream',
-      size: bucketUpload.size,
-      access: rawAccess,
-      bucketKey: bucketUpload.key,
-      destination: bucketUpload.destination,
-      cacheData,
-      folderId,
-      updatedAt: new Date()
-    })
-    .onConflictDoUpdate({
-      target: cdnAssets.key,
-      set: {
+  try {
+    const bucketUpload = await uploadToBucket0({
+      data: file.data,
+      filename: file.filename,
+      type: file.type
+    }, path)
+    const { Buffer } = await import('node:buffer')
+    const cacheData = Buffer.from(file.data).toString('base64')
+
+    const db = useDb()
+    const [asset] = await db
+      .insert(cdnAssets)
+      .values({
+        key: path,
         fileName: bucketUpload.fileName,
         mimeType: file.type || 'application/octet-stream',
         size: bucketUpload.size,
@@ -69,19 +59,39 @@ export default defineEventHandler(async (event) => {
         cacheData,
         folderId,
         updatedAt: new Date()
-      }
+      })
+      .onConflictDoUpdate({
+        target: cdnAssets.key,
+        set: {
+          fileName: bucketUpload.fileName,
+          mimeType: file.type || 'application/octet-stream',
+          size: bucketUpload.size,
+          access: rawAccess,
+          bucketKey: bucketUpload.key,
+          destination: bucketUpload.destination,
+          cacheData,
+          folderId,
+          updatedAt: new Date()
+        }
+      })
+      .returning()
+
+    if (!asset) {
+      throw createError({ statusCode: 500, statusMessage: 'Failed to persist CDN asset metadata' })
+    }
+
+    setResponseStatus(event, 201)
+    const { cacheData: _cacheData, ...safeAsset } = asset
+    return {
+      ...safeAsset,
+      publicUrl: `/api/cdn/assets/${asset.key}`,
+      private: asset.access === 'api_key'
+    }
+  } catch (e: any) {
+    console.error('UPLOAD CRASH:', e.stack || e)
+    throw createError({
+      statusCode: 500,
+      statusMessage: e.message || 'Unknown upload error'
     })
-    .returning()
-
-  if (!asset) {
-    throw createError({ statusCode: 500, statusMessage: 'Failed to persist CDN asset metadata' })
-  }
-
-  setResponseStatus(event, 201)
-  const { cacheData: _cacheData, ...safeAsset } = asset
-  return {
-    ...safeAsset,
-    publicUrl: `/api/cdn/assets/${asset.key}`,
-    private: asset.access === 'api_key'
   }
 })

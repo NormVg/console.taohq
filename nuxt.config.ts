@@ -1,6 +1,7 @@
 // https://nuxt.com/docs/api/configuration/nuxt-config
 export default defineNuxtConfig({
   compatibilityDate: '2025-07-15',
+  ignore: ['.info2ai', '.wrangler'],
   devtools: { enabled: true },
   modules: [
     '@nuxtjs/tailwindcss',
@@ -34,9 +35,26 @@ export default defineNuxtConfig({
 
   nitro: {
     preset: "cloudflare_module",
+    exportConditions: ['browser', 'worker'],
     cloudflare: {
       deployConfig: true,
-      nodeCompat: true
+      nodeCompat: false
+    },
+    alias: {
+      "net": "node:net",
+      "tls": "node:tls",
+      "url": "node:url",
+      "dns": "node:dns",
+      "fs": "node:fs",
+      "stream": "node:stream",
+      "util": "node:util",
+      "buffer": "node:buffer",
+      "crypto": "node:crypto",
+      "path": "node:path",
+      "os": "node:os",
+      "http": "node:http",
+      "https": "node:https",
+      "events": "node:events"
     },
     serverAssets: [{ baseName: 'db-migrations', dir: 'server/db/migrations' }],
   },
