@@ -1,25 +1,43 @@
-const BUCKET0_BASE_URL = 'https://bucket0.com/api/agent-bucket'
+import {
+  S3Client,
+  PutObjectCommand,
+  GetObjectCommand,
+  DeleteObjectCommand,
+} from '@aws-sdk/client-s3'
 
-type Bucket0UploadResponse = {
-  success: boolean
-  key: string
-  fileName: string
-  size: number
-  destination?: string
-}
-
-export function getBucket0ApiKey(): string {
+export function getS3Config() {
   const config = useRuntimeConfig()
-  const key = config.bucket0ApiKey
-
-  if (!key) {
+  
+  if (!config.bucket0S3AccessKeyId || !config.bucket0S3SecretAccessKey || !config.bucket0S3Bucket) {
     throw createError({
       statusCode: 500,
-      statusMessage: 'BUCKET0_API_KEY is not configured'
+      statusMessage: 'Bucket0 S3 credentials are not configured'
     })
   }
 
-  return key
+  return {
+    accessKeyId: config.bucket0S3AccessKeyId,
+    secretAccessKey: config.bucket0S3SecretAccessKey,
+    bucket: config.bucket0S3Bucket
+  }
+}
+
+let s3Client: S3Client | null = null
+
+export function getS3Client() {
+  if (!s3Client) {
+    const config = getS3Config()
+    s3Client = new S3Client({
+      region: 'auto',
+      endpoint: 'https://s3.bucket0.com',
+      credentials: {
+        accessKeyId: config.accessKeyId,
+        secretAccessKey: config.secretAccessKey
+      },
+      forcePathStyle: true
+    })
+  }
+  return s3Client
 }
 
 export function sanitizeAssetPath(input: string): string {
@@ -45,72 +63,74 @@ export function inferFileName(path: string): string {
 }
 
 export async function uploadToBucket0(file: { data: Uint8Array; filename?: string; type?: string }, path: string) {
-  const form = new FormData()
+  const config = getS3Config()
+  const s3 = getS3Client()
+  
   const bytes = Buffer.from(file.data)
-  const blob = new Blob([bytes], { type: file.type || 'application/octet-stream' })
-  form.append('file', blob, file.filename || inferFileName(path))
-  form.append('filename', path)
-
-  const response = await fetch(`${BUCKET0_BASE_URL}/files/upload`, {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${getBucket0ApiKey()}`
-    },
-    body: form
-  })
-
-  const payload = await response.json().catch(() => null) as Bucket0UploadResponse | null
-
-  if (!response.ok || !payload?.success) {
+  
+  try {
+    await s3.send(new PutObjectCommand({
+      Bucket: config.bucket,
+      Key: path,
+      Body: bytes,
+      ContentType: file.type || 'application/octet-stream'
+    }))
+  } catch (error: any) {
     throw createError({
-      statusCode: response.status || 502,
-      statusMessage: payload ? JSON.stringify(payload) : 'Bucket0 upload failed'
+      statusCode: 502,
+      statusMessage: error.message || 'Bucket0 S3 upload failed'
     })
   }
 
   return {
-    key: payload.key,
-    fileName: payload.fileName,
-    size: payload.size,
-    destination: payload.destination || 'unknown'
+    key: path,
+    fileName: file.filename || inferFileName(path),
+    size: bytes.byteLength,
+    destination: 's3'
   }
 }
 
 export async function downloadFromBucket0(key: string) {
-  const response = await fetch(`${BUCKET0_BASE_URL}/files/download?key=${encodeURIComponent(key)}`, {
-    headers: {
-      Authorization: `Bearer ${getBucket0ApiKey()}`
-    }
-  })
+  const config = getS3Config()
+  const s3 = getS3Client()
 
-  if (!response.ok) {
+  try {
+    const response = await s3.send(new GetObjectCommand({
+      Bucket: config.bucket,
+      Key: key
+    }))
+
+    if (!response.Body) {
+      throw new Error('Empty body')
+    }
+
+    const byteArray = await response.Body.transformToByteArray()
+    
+    return {
+      data: Buffer.from(byteArray),
+      contentType: response.ContentType || 'application/octet-stream'
+    }
+  } catch (error: any) {
     throw createError({
-      statusCode: response.status,
-      statusMessage: 'Bucket0 download failed'
+      statusCode: error.$metadata?.httpStatusCode || 500,
+      statusMessage: error.message || 'Bucket0 S3 download failed'
     })
   }
-
-  return response
 }
 
 export async function deleteFromBucket0(key: string) {
-  const response = await fetch(`${BUCKET0_BASE_URL}/files?key=${encodeURIComponent(key)}`, {
-    method: 'DELETE',
-    headers: {
-      Authorization: `Bearer ${getBucket0ApiKey()}`
-    }
-  })
+  const config = getS3Config()
+  const s3 = getS3Client()
 
-  if (!response.ok) {
-    let errorMsg = 'Bucket0 delete failed'
-    try {
-      const payload = await response.json()
-      if (payload.error) errorMsg = payload.error
-    } catch {}
-
+  try {
+    await s3.send(new DeleteObjectCommand({
+      Bucket: config.bucket,
+      Key: key
+    }))
+  } catch (error: any) {
     throw createError({
-      statusCode: response.status,
-      statusMessage: errorMsg
+      statusCode: error.$metadata?.httpStatusCode || 500,
+      statusMessage: error.message || 'Bucket0 S3 delete failed'
     })
   }
 }

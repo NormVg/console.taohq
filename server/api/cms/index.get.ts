@@ -1,13 +1,21 @@
-import { desc } from 'drizzle-orm'
+import { desc, eq, isNull } from 'drizzle-orm'
 import { useDb } from '../../db/client'
 import { content } from '../../db/schema'
 
 // GET /api/cms — list all entries, newest first
-export default defineEventHandler(async () => {
+export default defineEventHandler(async (event) => {
   const db = useDb()
-  const rows = await db
-    .select()
-    .from(content)
-    .orderBy(desc(content.createdAt))
+  const query = getQuery(event)
+  const folderId = query.folderId as string | undefined
+
+  let q = db.select().from(content)
+
+  if (folderId === 'null') {
+    q = q.where(isNull(content.folderId)) as any
+  } else if (folderId) {
+    q = q.where(eq(content.folderId, folderId)) as any
+  }
+
+  const rows = await q.orderBy(desc(content.createdAt))
   return rows
 })

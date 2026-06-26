@@ -14,6 +14,7 @@ export default defineEventHandler(async (event) => {
   const file = parts?.find(part => part.name === 'file' && part.data)
   const rawPath = parts?.find(part => part.name === 'path')?.data?.toString()
   const rawAccess = parts?.find(part => part.name === 'access')?.data?.toString() || 'public'
+  const folderId = parts?.find(part => part.name === 'folderId')?.data?.toString() || null
 
   if (!file) {
     throw createError({ statusCode: 400, statusMessage: 'Multipart file field is required' })
@@ -27,7 +28,13 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 400, statusMessage: 'access must be public or api_key' })
   }
 
-  const path = sanitizeAssetPath(rawPath || file.filename || '')
+  let finalPath = rawPath?.trim() || ''
+  if (finalPath && finalPath.endsWith('/')) {
+    finalPath += file.filename || ''
+  } else if (!finalPath) {
+    finalPath = file.filename || ''
+  }
+  const path = sanitizeAssetPath(finalPath)
   const bucketUpload = await uploadToBucket0({
     data: file.data,
     filename: file.filename,
@@ -47,6 +54,7 @@ export default defineEventHandler(async (event) => {
       bucketKey: bucketUpload.key,
       destination: bucketUpload.destination,
       cacheData,
+      folderId,
       updatedAt: new Date()
     })
     .onConflictDoUpdate({
@@ -59,6 +67,7 @@ export default defineEventHandler(async (event) => {
         bucketKey: bucketUpload.key,
         destination: bucketUpload.destination,
         cacheData,
+        folderId,
         updatedAt: new Date()
       }
     })

@@ -1,4 +1,13 @@
-import { pgTable, uuid, text, boolean, timestamp, integer } from 'drizzle-orm/pg-core'
+import { pgTable, uuid, text, boolean, timestamp, integer, AnyPgColumn } from 'drizzle-orm/pg-core'
+
+export const folders = pgTable('folders', {
+  id:        uuid('id').primaryKey().defaultRandom(),
+  name:      text('name').notNull(),
+  parentId:  uuid('parent_id').references((): AnyPgColumn => folders.id),
+  type:      text('type').notNull(),          // 'cdn' | 'cms'
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow()
+})
 
 export const content = pgTable('content', {
   id:        uuid('id').primaryKey().defaultRandom(),
@@ -7,6 +16,7 @@ export const content = pgTable('content', {
   type:      text('type').notNull(),          // 'text' | 'markdown' | 'json'
   body:      text('body').notNull().default(''),
   published: boolean('published').notNull().default(true),
+  folderId:  uuid('folder_id').references(() => folders.id),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow()
 })
@@ -31,6 +41,7 @@ export const cdnAssets = pgTable('cdn_assets', {
   bucketKey:   text('bucket_key').notNull(),
   destination: text('destination').notNull().default('unknown'),
   cacheData:   text('cache_data').notNull(),
+  folderId:    uuid('folder_id').references(() => folders.id),
   createdAt:   timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   updatedAt:   timestamp('updated_at', { withTimezone: true }).notNull().defaultNow()
 })
@@ -43,3 +54,6 @@ export type NewApiKey = typeof apiKeys.$inferInsert
 
 export type CdnAsset    = typeof cdnAssets.$inferSelect
 export type NewCdnAsset = typeof cdnAssets.$inferInsert
+
+export type Folder    = typeof folders.$inferSelect
+export type NewFolder = typeof folders.$inferInsert

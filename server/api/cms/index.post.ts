@@ -5,7 +5,7 @@ import { content } from '../../db/schema'
 export default defineEventHandler(async (event) => {
   const body = await readBody(event)
 
-  const { title, slug, type, body: entryBody, published } = body
+  const { title, slug, type, body: entryBody, published, folderId } = body
 
   if (!title || !slug || !type) {
     throw createError({ statusCode: 400, message: 'title, slug, and type are required.' })
@@ -30,7 +30,8 @@ export default defineEventHandler(async (event) => {
       slug:      slug.toLowerCase().trim().replace(/\s+/g, '-'),
       type,
       body:      entryBody ?? '',
-      published: published ?? true
+      published: published ?? true,
+      folderId:  folderId ?? null
     })
     .returning()
 

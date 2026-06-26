@@ -7,7 +7,7 @@ export default defineEventHandler(async (event) => {
   const id   = getRouterParam(event, 'id')
   const body = await readBody(event)
 
-  const { title, slug, type, body: entryBody, published } = body
+  const { title, slug, type, body: entryBody, published, folderId } = body
 
   if (!title || !slug || !type) {
     throw createError({ statusCode: 400, message: 'title, slug, and type are required.' })
@@ -32,6 +32,7 @@ export default defineEventHandler(async (event) => {
       type,
       body:      entryBody ?? '',
       published: published ?? true,
+      folderId:  folderId ?? null,
       updatedAt: new Date()
     })
     .where(eq(content.id, id!))

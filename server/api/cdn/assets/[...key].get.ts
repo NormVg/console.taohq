@@ -18,8 +18,20 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 404, statusMessage: 'Asset not found' })
   }
 
-  if (asset.access === 'api_key' && !(await hasConsoleAccess(event))) {
-    throw createError({ statusCode: 401, statusMessage: 'Unauthorized' })
+  if (asset.access === 'api_key') {
+    const isPreview = getQuery(event).console_preview === '1'
+    if (isPreview) {
+      const authCookie = getCookie(event, 'console_authenticated')
+      if (authCookie !== 'true' && authCookie !== '"true"') {
+        throw createError({ statusCode: 401, statusMessage: 'Unauthorized (Console Preview)' })
+      }
+    } else {
+      const { validateApiKey } = await import('../../../utils/apiKey')
+      const isValid = await validateApiKey(event)
+      if (!isValid) {
+        throw createError({ statusCode: 401, statusMessage: 'this is protected and use api key to accesss' })
+      }
+    }
   }
 
   let body: Buffer
@@ -27,8 +39,8 @@ export default defineEventHandler(async (event) => {
 
   try {
     const response = await downloadFromBucket0(asset.bucketKey)
-    body = Buffer.from(await response.arrayBuffer())
-    contentType = response.headers.get('content-type') || asset.mimeType
+    body = response.data
+    contentType = response.contentType || asset.mimeType
   } catch (error: any) {
     if (!asset.cacheData) {
       throw error

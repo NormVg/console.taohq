@@ -47,54 +47,34 @@ Is the motion triggered by user input (click, press, toggle, flick)?
 ## 4. Implementation: Theme Toggle (Cinematic Circular Reveal)
 
 ```js
-// Nuxt example using @nuxtjs/color-mode
-// For Vanilla JS, replace colorMode logic with: document.documentElement.classList.toggle('dark')
-
-const colorMode = useColorMode()
-
 async function toggleTheme(event) {
-  const newTheme = colorMode.value === 'dark' ? 'light' : 'dark'
-
-  // 1. Fallback for browsers without View Transition API
-  if (!document.startViewTransition) {
-    colorMode.preference = newTheme
-    return
-  }
-
-  // 2. Capture click origin
+  // 1. Capture click origin
   const x = event.clientX;
   const y = event.clientY;
 
-  // 3. Calculate maximum radius (Pythagorean)
+  // 2. Calculate maximum radius (Pythagorean)
   const maxRadius = Math.hypot(
     Math.max(x, window.innerWidth - x),
     Math.max(y, window.innerHeight - y)
   );
 
-  // 4. Use View Transition API
+  // 3. Use View Transition API with circular clip
   const transition = document.startViewTransition(() => {
-    colorMode.preference = newTheme
+    document.documentElement.setAttribute('data-theme',
+      isDark ? 'light' : 'dark'
+    );
   });
 
   await transition.ready;
 
-  // 5. Animate the reveal circle
+  // 4. Animate the reveal circle
   document.documentElement.animate(
     { clipPath: [`circle(0px at ${x}px ${y}px)`, `circle(${maxRadius}px at ${x}px ${y}px)`] },
     { duration: 500, easing: 'cubic-bezier(0.455, 0.03, 0.515, 0.955)', pseudoElement: '::view-transition-new(root)' }
   );
 }
 ```
-Disable default crossfade in CSS:
-```css
-::view-transition-old(root),
-::view-transition-new(root) {
-  animation: none;
-  mix-blend-mode: normal;
-}
-::view-transition-old(root) { z-index: 1; }
-::view-transition-new(root) { z-index: 9999; }
-```
+Disable default crossfade: `::view-transition-old(root) { animation: none; }`.
 
 ---
 

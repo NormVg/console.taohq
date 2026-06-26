@@ -6,8 +6,8 @@ export default defineNitroPlugin(async () => {
   const db = useDb()
 
   try {
-    const migrationsFolder = resolveMigrationsDir()
-    await migrate(db, { migrationsFolder })
+    // const migrationsFolder = resolveMigrationsDir()
+    // await migrate(db, { migrationsFolder })
   } catch (err) {
     console.error('[db] ⚠ drizzle migrate:', err)
   }
