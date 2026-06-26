@@ -22,22 +22,17 @@ export function getS3Config() {
   }
 }
 
-let s3Client: S3Client | null = null
-
 export function getS3Client() {
-  if (!s3Client) {
-    const config = getS3Config()
-    s3Client = new S3Client({
-      region: 'auto',
-      endpoint: 'https://s3.bucket0.com',
-      credentials: {
-        accessKeyId: config.accessKeyId,
-        secretAccessKey: config.secretAccessKey
-      },
-      forcePathStyle: true
-    })
-  }
-  return s3Client
+  const config = getS3Config()
+  return new S3Client({
+    region: 'auto',
+    endpoint: 'https://s3.bucket0.com',
+    credentials: {
+      accessKeyId: config.accessKeyId,
+      secretAccessKey: config.secretAccessKey
+    },
+    forcePathStyle: true
+  })
 }
 
 export function sanitizeAssetPath(input: string): string {

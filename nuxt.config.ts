@@ -8,6 +8,7 @@ export default defineNuxtConfig({
     '@vueuse/nuxt',
     '@pinia/nuxt',
     '@nuxtjs/color-mode',
+    'nitro-cloudflare-dev',
   ],
 
   colorMode: {
@@ -32,6 +33,11 @@ export default defineNuxtConfig({
   },
 
   nitro: {
+    preset: "cloudflare_module",
+    cloudflare: {
+      deployConfig: true,
+      nodeCompat: true
+    },
     serverAssets: [{ baseName: 'db-migrations', dir: 'server/db/migrations' }],
   },
   runtimeConfig: {
