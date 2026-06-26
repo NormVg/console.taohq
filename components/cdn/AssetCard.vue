@@ -17,7 +17,10 @@
     <div class="entry-meta">
       <span>{{ formatBytes(asset.size) }}</span>
       <span class="meta-dot" />
-      <span>{{ formatDate(asset.createdAt) }}</span>
+      <ClientOnly>
+        <span>{{ formatDate(asset.createdAt) }}</span>
+        <template #fallback><span>...</span></template>
+      </ClientOnly>
       <span class="meta-dot" />
       <span>{{ asset.storageType || 'default' }}</span>
     </div>

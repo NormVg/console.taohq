@@ -15,7 +15,10 @@
     </div>
     <span class="entry-route">/api/content/{{ entry.slug }}</span>
     <div class="entry-meta">
-      <span>{{ formatDate(entry.createdAt) }}</span>
+      <ClientOnly>
+        <span>{{ formatDate(entry.createdAt) }}</span>
+        <template #fallback><span>...</span></template>
+      </ClientOnly>
       <span class="entry-status">
         <span :class="['status-dot', entry.published ? 'live' : 'draft']" />
         {{ entry.published ? 'Live' : 'Draft' }}

@@ -93,7 +93,10 @@
           </div>
           <div class="metadata-item">
             <span class="metadata-label">Uploaded</span>
-            <span class="metadata-value">{{ formatDate(selectedAsset.createdAt) }}</span>
+            <ClientOnly>
+              <span class="metadata-value">{{ formatDate(selectedAsset.createdAt) }}</span>
+              <template #fallback><span class="metadata-value">...</span></template>
+            </ClientOnly>
           </div>
           <div class="metadata-item">
             <span class="metadata-label">Access</span>
