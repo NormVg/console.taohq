@@ -52,6 +52,20 @@
               <pre><code>curl {{ baseUrl }}/api/content/privacy-policy</code></pre>
             </div>
           </div>
+
+          <div class="endpoint">
+            <div class="endpoint-header">
+              <GeistBadge variant="warning">PATCH</GeistBadge>
+              <code>/api/content/:slug</code>
+            </div>
+            <p>Updates a specific content entry's data by its slug. This is a protected endpoint and requires an API key.</p>
+            <div class="code-block">
+              <pre><code>curl -X PATCH {{ baseUrl }}/api/content/privacy-policy \
+  -H "x-api-key: YOUR_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"data": {"title": "Updated Policy", "content": "..."}}'</code></pre>
+            </div>
+          </div>
         </section>
 
         <!-- CDN API Section -->
